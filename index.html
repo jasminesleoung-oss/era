@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>era · fitness & wellness</title>
+  <meta name="theme-color" content="#0a0d07" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="era" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css?v=4" />
+</head>
+<body>
+  <div class="lava" aria-hidden="true">
+    <span class="blob b1"></span>
+    <span class="blob b2"></span>
+    <span class="blob b3"></span>
+    <span class="blob b4"></span>
+  </div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <svg class="bow brand-bow" viewBox="0 0 64 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path class="ink" d="M31 27 L23 51 L27 46.5 L29.5 52 L33 30 Z"/><path class="ink" d="M33 27 L41 51 L37 46.5 L34.5 52 L31 30 Z"/><path class="ink" d="M30 22 C20 11 7 13 7 21 C7 30 20 34 30 26 Z"/><path class="ink" d="M34 22 C44 11 57 13 57 21 C57 30 44 34 34 26 Z"/><rect class="ink" x="28.5" y="19" width="7" height="10" rx="3"/><ellipse class="shine" cx="17" cy="18" rx="6" ry="2.6"/><ellipse class="shine" cx="47" cy="18" rx="6" ry="2.6"/><path class="sparkle sp1" d="M53 4 L54 9 L59 10 L54 11 L53 16 L52 11 L47 10 L52 9 Z"/><path class="sparkle sp2" d="M11 9 L11.7 12 L15 12.7 L11.7 13.4 L11 16.4 L10.3 13.4 L7 12.7 L10.3 12 Z"/><path class="sparkle sp3" d="M18 43 L18.6 45.4 L21 46 L18.6 46.6 L18 49 L17.4 46.6 L15 46 L17.4 45.4 Z"/></svg>
+        <span class="brand-name">era</span>
+      </div>
+      <div class="header-actions">
+        <div class="points-badge" id="pointsBadge" title="Your points balance">
+          <span class="pts-icon">✦</span>
+          <span class="pts-value" id="pointsValue">0</span>
+          <span class="pts-label">pts</span>
+        </div>
+        <button class="settings-btn" id="settingsBtn" title="settings" aria-label="settings">⚙️</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="app">
+    <nav class="tabbar" id="tabbar">
+      <button class="tab" data-view="dashboard">home</button>
+      <button class="tab" data-view="quests">quests</button>
+      <button class="tab" data-view="rewards">rewards</button>
+      <button class="tab" data-view="you">you</button>
+    </nav>
+
+    <main id="view" class="view"></main>
+
+    <footer class="foot">
+      <span>local &amp; private — all data stays in this browser.</span>
+      <button class="link-btn" id="exportBtn">export data</button>
+      <button class="link-btn" id="importBtn">import</button>
+      <input type="file" id="importFile" accept="application/json" hidden />
+    </footer>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Load order matters (classic scripts, no build step).
+       ?v= busts stale browser caches on each deploy — bump it whenever
+       any js/*.js file OR css/styles.css changes, or phones may keep
+       running old code/styles. -->
+  <!-- Supabase client (optional cloud sync); harmless if offline -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/config.js?v=3"></script>
+  <script src="js/formulas.js?v=3"></script>
+  <script src="js/store.js?v=3"></script>
+  <script src="js/plans.js?v=3"></script>
+  <script src="js/foods.js?v=3"></script>
+  <script src="js/cloud.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
+</body>
+</html>

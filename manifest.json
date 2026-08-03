@@ -1,0 +1,14 @@
+{
+  "name": "Era",
+  "short_name": "Era",
+  "description": "Your hot girl era — fitness, food & wellness, gamified.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0d07",
+  "theme_color": "#0a0d07",
+  "icons": [
+    { "src": "icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable" }
+  ]
+}

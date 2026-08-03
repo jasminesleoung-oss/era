@@ -1,0 +1,5 @@
+# Local Netlify folder
+.netlify
+
+# Real secrets — generated at deploy time from GitHub Actions secrets
+js/config.js
