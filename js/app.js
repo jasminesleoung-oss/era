@@ -6,7 +6,6 @@
   var pointsValue = document.getElementById('pointsValue');
   var toastEl = document.getElementById('toast');
   var current = 'dashboard';
-  var exerciseSlotId = null; // which lineup slot views.exercises is scoped to
   var LAST_VIEW_KEY = 'era:lastView';
 
   // ---- tiny helpers ---------------------------------------------------
@@ -62,27 +61,24 @@
   }
 
   // ---- routing --------------------------------------------------------
-  // persists the current view (and exercise slot, if any) locally — purely a
-  // this-device UI convenience, not synced — so reopening the app (or the OS
-  // reloading the PWA after backgrounding) resumes where you left off
-  // instead of always dropping back to home.
-  function setView(name, slotId) {
+  // persists the current view locally — purely a this-device UI convenience,
+  // not synced — so reopening the app (or the OS reloading the PWA after
+  // backgrounding) resumes where you left off instead of always dropping
+  // back to home.
+  function setView(name) {
     current = name;
-    exerciseSlotId = slotId || null;
     [].forEach.call(tabbar.querySelectorAll('.tab'), function (b) {
       b.classList.toggle('active', b.dataset.view === name);
     });
-    try { localStorage.setItem(LAST_VIEW_KEY, JSON.stringify({ view: name, slotId: exerciseSlotId })); }
+    try { localStorage.setItem(LAST_VIEW_KEY, name); }
     catch (e) { /* ignore — resume is a nice-to-have, not critical */ }
     render();
   }
 
   function restoreLastView() {
     try {
-      var raw = localStorage.getItem(LAST_VIEW_KEY);
-      if (!raw) return null;
-      var saved = JSON.parse(raw);
-      if (saved && views[saved.view]) return saved;
+      var name = localStorage.getItem(LAST_VIEW_KEY);
+      if (name && views[name]) return name;
     } catch (e) { /* ignore */ }
     return null;
   }
@@ -375,20 +371,20 @@
     lineupCard.appendChild(el('<div class="card-head"><h3>this week’s lineup 💪</h3>' +
       '<button class="btn small" id="toggleWorkoutForm">+ log</button></div>'));
     lineupCard.appendChild(el('<p class="vibe-note">hit each once, any order, whenever works 🎲</p>'));
+    lineupCard.appendChild(el('<button class="link-btn" id="openExercises">📈 track your exercise numbers</button>'));
+    lineupCard.querySelector('#openExercises').addEventListener('click', function () { setView('exercises'); });
 
     var lineupList = el('<ul class="mini-list lineup-list"></ul>');
     slots.forEach(function (slot) {
       var li;
       if (slot.workout) {
         li = el('<li class="lineup-row done"><span class="lineup-check">✓</span>' +
-          '<div class="lineup-mid clickable" data-slot="' + slot.id + '"><div class="lineup-label">' + slot.emoji + ' ' + esc(slot.label) + '</div>' +
-          '<div class="muted small">done — ' + esc(slot.workout.name || slot.workout.type) + '</div></div>' +
-          '<span class="lineup-chevron">›</span></li>');
+          '<div class="lineup-mid"><div class="lineup-label">' + slot.emoji + ' ' + esc(slot.label) + '</div>' +
+          '<div class="muted small">done — ' + esc(slot.workout.name || slot.workout.type) + '</div></div></li>');
       } else {
         li = el('<li class="lineup-row"><span class="lineup-check">○</span>' +
-          '<div class="lineup-mid clickable" data-slot="' + slot.id + '"><div class="lineup-label">' + slot.emoji + ' ' + esc(slot.label) + '</div>' +
+          '<div class="lineup-mid"><div class="lineup-label">' + slot.emoji + ' ' + esc(slot.label) + '</div>' +
           '<div class="muted small">' + esc(slot.detail) + '</div></div>' +
-          '<span class="lineup-chevron">›</span>' +
           '<button class="lineup-add" data-preset="' + esc(slot.preset) + '" title="log a ' + esc(slot.label) + ' workout">+</button></li>');
       }
       lineupList.appendChild(li);
@@ -438,9 +434,6 @@
     }
     lineupCard.querySelectorAll('.lineup-add').forEach(function (b) {
       b.addEventListener('click', function () { openWorkoutForm(b.dataset.preset); });
-    });
-    lineupCard.querySelectorAll('.lineup-mid.clickable').forEach(function (m) {
-      m.addEventListener('click', function () { setView('exercises', m.dataset.slot); });
     });
 
     // ---- edit helpers: pre-fill + open the relevant form ----
@@ -526,25 +519,18 @@
     return c;
   }
 
-  // ==== EXERCISE TRACKER (per-exercise progress log, reached by tapping a
-  // lineup tile on Home — not a tab. Purely a reference log, no points.) ====
+  // ==== EXERCISE TRACKER (per-exercise progress log, reached via a link on
+  // the Home lineup card — not a tab. One flat list, since real exercises
+  // span multiple lineup categories. Purely a reference log, no points.) ====
   views.exercises = function () {
-    var slot = Plans.WEEK_SLOTS.filter(function (s) { return s.id === exerciseSlotId; })[0];
     var wrap = el('<section class="stack"></section>');
-    if (!slot) {
-      wrap.appendChild(el('<div class="card empty"><h3>lost the thread</h3>' +
-        '<p class="muted">head back home and tap a lineup tile to track an exercise.</p>' +
-        '<button class="btn primary" data-go="dashboard">back home</button></div>'));
-      wrap.querySelector('[data-go]').addEventListener('click', function () { setView('dashboard'); });
-      return wrap;
-    }
 
     wrap.appendChild(el('<button class="link-btn back-link" id="exBack">← back to home</button>'));
-    wrap.appendChild(el('<div class="hello"><h1>' + slot.emoji + ' ' + esc(slot.label) + '</h1>' +
+    wrap.appendChild(el('<div class="hello"><h1>exercise tracker 🏋️</h1>' +
       '<p class="muted">your numbers, so you don’t need a notes app ✍️</p></div>'));
     wrap.querySelector('#exBack').addEventListener('click', function () { setView('dashboard'); });
 
-    var exercises = Store.exercisesForSlot(slot.id);
+    var exercises = Store.state.exercises;
     var listCard = el('<div class="card"></div>');
     if (!exercises.length) {
       listCard.appendChild(el('<p class="muted">nothing tracked yet — add an exercise below 👇</p>'));
@@ -609,7 +595,7 @@
       e.preventDefault();
       var name = e.target.name.value.trim();
       if (!name) return;
-      Store.addExercise(slot.id, name);
+      Store.addExercise(name);
       toast('added ✨');
       render();
     });
@@ -1287,9 +1273,7 @@
     Store.ensureRewardPack(); // one-time top-up of the expanded rewards lineup
     Store.save(); // reconcile bonuses once
     if (!Formulas.targets(Store.state.profile)) { setView('profile'); return; }
-    var saved = restoreLastView();
-    if (saved) setView(saved.view, saved.slotId);
-    else setView('dashboard');
+    setView(restoreLastView() || 'dashboard');
   }
 
   function handleUser(user) {

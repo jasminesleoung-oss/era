@@ -388,9 +388,12 @@ var Store = (function () {
 
   // ---- exercise tracker (per-exercise progress log, e.g. "bicep curl: 25lbs
   // x10" or "5k in 28:00" — a running journal so you don't need a notes app.
-  // Scoped to a lineup slotId; not point-earning, purely a reference log.) --
-  function addExercise(slotId, name) {
-    var ex = { id: uid(), slotId: slotId, name: name, entries: [] };
+  // One flat list, not scoped to a lineup slot — real exercises span
+  // multiple slots (e.g. bicep curl shows up under both "upper body" and
+  // "full body"), so per-slot buckets would just duplicate/fragment them.
+  // Not point-earning, purely a reference log.) --------------------------
+  function addExercise(name) {
+    var ex = { id: uid(), name: name, entries: [] };
     state.exercises.push(ex);
     save();
     return ex.id;
@@ -420,10 +423,6 @@ var Store = (function () {
     if (!ex) return;
     ex.entries = ex.entries.filter(function (e) { return e.id !== entryId; });
     save();
-  }
-
-  function exercisesForSlot(slotId) {
-    return state.exercises.filter(function (x) { return x.slotId === slotId; });
   }
 
   // ---- vibe check (mood, one tap/day — never cross-referenced with food) ----
@@ -633,7 +632,6 @@ var Store = (function () {
     updateExercise: updateExercise,
     logExerciseEntry: logExerciseEntry,
     deleteExerciseEntry: deleteExerciseEntry,
-    exercisesForSlot: exercisesForSlot,
     logVibe: logVibe,
     vibeToday: vibeToday,
     vibeStreak: vibeStreak,
