@@ -71,7 +71,8 @@ var Store = (function () {
       pointsLog: [],  // {id,date,delta,reason,key}
       vibes: [],      // {date, level: 1-5} — one per day, no correlation to food/exercise
       periodDays: [], // {date, flow: 'light'|'medium'|'heavy'} — self-reported cycle log
-      restDays: []    // [ISO dates] — explicitly marked rest days
+      restDays: [],   // [ISO dates] — explicitly marked rest days
+      exercises: []   // {id,slotId,name,entries:[{id,date,text}]} — per-exercise progress log
       // no rewardPackV2 flag here on purpose — ensureRewardPack() sets it
       // after actually seeding, and it's idempotent either way.
     };
@@ -385,6 +386,46 @@ var Store = (function () {
     return { ok: true, msg: 'treat unlocked — go get it, you earned this 💅✨' };
   }
 
+  // ---- exercise tracker (per-exercise progress log, e.g. "bicep curl: 25lbs
+  // x10" or "5k in 28:00" — a running journal so you don't need a notes app.
+  // Scoped to a lineup slotId; not point-earning, purely a reference log.) --
+  function addExercise(slotId, name) {
+    var ex = { id: uid(), slotId: slotId, name: name, entries: [] };
+    state.exercises.push(ex);
+    save();
+    return ex.id;
+  }
+
+  function deleteExercise(id) {
+    state.exercises = state.exercises.filter(function (x) { return x.id !== id; });
+    save();
+  }
+
+  function updateExercise(id, patch) {
+    var ex = state.exercises.find(function (x) { return x.id === id; });
+    if (!ex) return;
+    Object.assign(ex, patch);
+    save();
+  }
+
+  function logExerciseEntry(exerciseId, text) {
+    var ex = state.exercises.find(function (x) { return x.id === exerciseId; });
+    if (!ex) return;
+    ex.entries.push({ id: uid(), date: todayISO(), text: text });
+    save();
+  }
+
+  function deleteExerciseEntry(exerciseId, entryId) {
+    var ex = state.exercises.find(function (x) { return x.id === exerciseId; });
+    if (!ex) return;
+    ex.entries = ex.entries.filter(function (e) { return e.id !== entryId; });
+    save();
+  }
+
+  function exercisesForSlot(slotId) {
+    return state.exercises.filter(function (x) { return x.slotId === slotId; });
+  }
+
   // ---- vibe check (mood, one tap/day — never cross-referenced with food) ----
   // logging a single day's vibe isn't worth points itself — only keeping a
   // 7-day check-in streak going is (see vibeStreak/reconcileVibeStreaks).
@@ -587,6 +628,12 @@ var Store = (function () {
     restDaysTakenThisWeek: restDaysTakenThisWeek,
     toggleRestDay: toggleRestDay,
     isRestDay: isRestDay,
+    addExercise: addExercise,
+    deleteExercise: deleteExercise,
+    updateExercise: updateExercise,
+    logExerciseEntry: logExerciseEntry,
+    deleteExerciseEntry: deleteExerciseEntry,
+    exercisesForSlot: exercisesForSlot,
     logVibe: logVibe,
     vibeToday: vibeToday,
     vibeStreak: vibeStreak,
