@@ -191,7 +191,7 @@ var Store = (function () {
   function addWorkout(w) {
     w.id = uid();
     state.workouts.push(w);
-    var pts = Formulas.workoutPoints(w.durationMin, w.intensity);
+    var pts = Formulas.workoutPoints(w.durationMin);
     addPoints(pts, 'Workout: ' + (w.name || w.type), 'workout:' + w.id);
     save();
     return pts;
@@ -208,7 +208,7 @@ var Store = (function () {
     if (!w) return 0;
     Object.assign(w, patch);
     removePointsByKey('workout:' + id);
-    var pts = Formulas.workoutPoints(w.durationMin, w.intensity);
+    var pts = Formulas.workoutPoints(w.durationMin);
     addPoints(pts, 'Workout: ' + (w.name || w.type), 'workout:' + id);
     save();
     return pts;

@@ -64,14 +64,14 @@ var Formulas = (function () {
   }
 
   // ---- Points economy -------------------------------------------------
-  var INTENSITY_BONUS = { low: 0, moderate: 10, high: 20 };
-
-  function workoutPoints(durationMin, intensity) {
+  // Flat tiers by duration — a round, predictable number instead of a
+  // base + per-5-min + intensity-bonus formula you had to add up in your head.
+  function workoutPoints(durationMin) {
     var d = Math.max(0, Number(durationMin) || 0);
-    var base = 10;
-    var perTime = Math.floor(d / 5) * 2;               // 2 pts per 5 minutes
-    var intn = INTENSITY_BONUS[intensity] != null ? INTENSITY_BONUS[intensity] : 0;
-    return base + perTime + intn;
+    if (d <= 20) return 15;
+    if (d <= 40) return 30;
+    if (d <= 60) return 45;
+    return 60;
   }
 
   var DAILY_PROTEIN_BONUS = 25;

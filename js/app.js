@@ -501,10 +501,22 @@
   }
 
   function streakCard() {
-    // count consecutive days (ending today) with at least one workout or meal
+    // a day counts toward the streak if you worked out OR your calories
+    // landed on target — not just for logging *something*. Same 0.9–1.1x
+    // band as the daily calorie bonus, so "on track" means one thing app-wide.
     var days = {};
     Store.state.workouts.forEach(function (w) { days[w.date] = true; });
-    Store.state.meals.forEach(function (m) { days[m.date] = true; });
+    var t = Formulas.targets(Store.state.profile);
+    if (t) {
+      var calByDay = {};
+      Store.state.meals.forEach(function (m) {
+        calByDay[m.date] = (calByDay[m.date] || 0) + (Number(m.calories) || 0);
+      });
+      Object.keys(calByDay).forEach(function (date) {
+        var cal = calByDay[date];
+        if (cal >= t.calories * 0.9 && cal <= t.calories * 1.1) days[date] = true;
+      });
+    }
     var streak = 0;
     var d = new Date(Store.todayISO() + 'T00:00:00');
     while (true) {
@@ -515,7 +527,7 @@
     var c = el('<div class="card streak"></div>');
     c.innerHTML = '<div class="streak-flame' + (streak > 0 ? ' lit' : '') + '">' + (streak > 0 ? '🔥' : '💤') + '</div>' +
       '<div><div class="streak-num">' + streak + ' day' + (streak === 1 ? '' : 's') + '</div>' +
-      '<div class="muted">' + (streak > 0 ? 'logging streak — don’t break it 🔒' : 'log something today to start a streak.') + '</div></div>';
+      '<div class="muted">' + (streak > 0 ? 'on-track streak — don’t break it 🔒' : 'work out or hit target to start a streak.') + '</div></div>';
     return c;
   }
 
