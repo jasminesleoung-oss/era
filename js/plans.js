@@ -5,22 +5,22 @@
 var Plans = (function () {
   var WEEK_SLOTS = [
     { id: 'full', label: 'full-body strength', emoji: '💪', preset: 'Strength (Full-body)',
-      detail: 'Squat, push, pull, hinge — 3×8–10. ~40 min. F45 resistance counts too.',
+      detail: 'Squat, push, pull, hinge — 3×8–10.',
       match: function (t) { return t === 'Strength (Full-body)' || t === 'F45 – Resistance'; } },
     { id: 'zone2', label: 'zone-2 cardio', emoji: '🏃‍♀️', preset: 'Running/Spin',
-      detail: 'Run, spin, or F45 cardio — conversational pace. 30–45 min.',
+      detail: 'Run, spin, or F45 — easy pace.',
       match: function (t) { return t === 'Running/Spin' || t === 'F45 – Cardio' || t === 'Cardio'; } },
     { id: 'upper', label: 'upper-body + core', emoji: '🙌', preset: 'Strength (Upper+Core)',
-      detail: 'Press, row, curl, plank circuit. ~40 min.',
+      detail: 'Press, row, curl, plank circuit.',
       match: function (t) { return t === 'Strength (Upper+Core)'; } },
     { id: 'hiit', label: 'HIIT intervals', emoji: '⚡', preset: 'HIIT',
-      detail: '30s hard / 90s easy × 8 rounds, ~25 min.',
+      detail: '30s hard / 90s easy × 8 rounds.',
       match: function (t) { return t === 'HIIT'; } },
     { id: 'lower', label: 'lower-body strength', emoji: '🦵', preset: 'Strength (Lower-body)',
-      detail: 'Deadlift, lunge, glute bridge · 3×10. ~40 min.',
+      detail: 'Deadlift, lunge, glute bridge — 3×10.',
       match: function (t) { return t === 'Strength (Lower-body)'; } },
     { id: 'flex', label: 'flex day — your call', emoji: '🎲', preset: 'Strength (Full-body)',
-      detail: 'Whatever you’re feeling — extra resistance, cardio, or another F45 class.',
+      detail: 'Whatever you’re feeling — resistance, cardio, or F45.',
       match: function (t) {
         return ['Strength (Full-body)', 'Strength (Upper+Core)', 'Strength (Lower-body)',
           'F45 – Resistance', 'F45 – Cardio', 'Running/Spin', 'Cardio', 'HIIT'].indexOf(t) !== -1;

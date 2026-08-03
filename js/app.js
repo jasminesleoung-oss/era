@@ -128,7 +128,7 @@
         '<input name="name" form="mForm" id="foodSearch" placeholder="e.g. chicken & rice bowl — or search a food…" autocomplete="off" required>' +
         '<button class="btn primary" id="foodSearchBtn" type="button">search</button>' +
       '</div>' +
-      '<div class="search-hint">pulls macros from USDA FoodData Central (needs internet) — or just fill in calories yourself below. 🔎</div>' +
+      '<div class="search-hint">pulls macros from USDA FoodData Central — or fill in calories yourself below. 🔎</div>' +
       '<ul class="results" id="results"></ul>' +
       '<div id="pickedBanner"></div>' +
       '<form id="mForm" class="form-grid">' +
@@ -221,7 +221,7 @@
           resultsEl.appendChild(li);
         });
       }).catch(function () {
-        resultsEl.innerHTML = '<li class="searching">couldn’t reach the food database — check your connection, or type it in manually. 🔌</li>';
+        resultsEl.innerHTML = '<li class="searching">couldn’t reach the food database — check your connection or type it in manually. 🔌</li>';
       });
     }
     card.querySelector('#foodSearchBtn').addEventListener('click', runSearch);
@@ -296,7 +296,7 @@
     if (!t) {
       wrap.appendChild(el(
         '<div class="card empty"><h3>set up your profile to begin</h3>' +
-        '<p class="muted">add your stats and goal in settings ⚙️ so era can calculate your daily targets.</p>' +
+        '<p class="muted">add your stats and goal in settings ⚙️ to get your daily targets.</p>' +
         '<button class="btn primary" data-go="profile">go to settings →</button></div>'
       ));
       wrap.querySelector('[data-go]').addEventListener('click', function () { setView('profile'); });
@@ -322,8 +322,8 @@
 
     macCard.appendChild(el('<p class="muted small" style="margin-top:12px">goal: ' + esc(t.goalLabel) + ' · ' + esc(t.activityLabel) +
       ' · BMR ' + t.bmr + ' · maintenance ~' + t.tdee + ' kcal</p>'));
-    macCard.appendChild(el('<div class="floor-note">💛 your floor: we never set your target below <strong>' + t.minCalories + ' kcal</strong>' +
-      (t.floored ? ' — so your target is held here rather than a steeper deficit.' : '.') + '</div>'));
+    macCard.appendChild(el('<div class="floor-note">💛 we never set your target below <strong>' + t.minCalories + ' kcal</strong>' +
+      (t.floored ? ' — held here instead of a steeper deficit.' : '.') + '</div>'));
 
     if (meals.length) {
       var foodLogFold = el('<details class="fold" style="margin-top:14px"></details>');
@@ -368,7 +368,7 @@
         li = el('<li class="lineup-row"><span class="lineup-check">○</span>' +
           '<div class="lineup-mid"><div class="lineup-label">' + slot.emoji + ' ' + esc(slot.label) + '</div>' +
           '<div class="muted small">' + esc(slot.detail) + '</div></div>' +
-          '<button class="btn small lineup-add" data-preset="' + esc(slot.preset) + '">+ log</button></li>');
+          '<button class="lineup-add" data-preset="' + esc(slot.preset) + '" title="log a ' + esc(slot.label) + ' workout">+</button></li>');
       }
       lineupList.appendChild(li);
     });
@@ -496,7 +496,7 @@
       else break;
     }
     var c = el('<div class="card streak"></div>');
-    c.innerHTML = '<div class="streak-flame">' + (streak > 0 ? '🔥' : '💤') + '</div>' +
+    c.innerHTML = '<div class="streak-flame' + (streak > 0 ? ' lit' : '') + '">' + (streak > 0 ? '🔥' : '💤') + '</div>' +
       '<div><div class="streak-num">' + streak + ' day' + (streak === 1 ? '' : 's') + '</div>' +
       '<div class="muted">' + (streak > 0 ? 'logging streak — don’t break it 🔒' : 'log something today to start a streak.') + '</div></div>';
     return c;
@@ -542,7 +542,7 @@
   views.quests = function () {
     var wrap = el('<section class="stack"></section>');
     wrap.appendChild(el('<div class="hello"><h1>quests ' + BOW + '</h1>' +
-      '<p class="muted">health quests + side quests, both worth points — health pays more. the more you’re dreading it, the bigger the payout 💰</p></div>'));
+      '<p class="muted">health quests pay more than side quests — the more you’re dreading it, the bigger the payout 💰</p></div>'));
 
     var selectedLevel = 3;
     var selectedType = 'health';
@@ -747,15 +747,16 @@
       var deadlineHTML = finished
         ? '<span class="deadline-tag ok">ended ' + new Date(q.endDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '</span>'
         : deadlineTag(q.endDate);
-      var btnLabel = finished ? 'period ended' : (doneToday ? 'done today ✓' : 'check in');
+      var checkinTitle = finished ? 'period ended' : (doneToday ? 'done today' : 'check in');
+      var checkinClass = finished ? 'finished' : (doneToday ? 'done-today' : 'primary');
       var li = el('<li class="quest-item recurring">' +
         '<span class="streak-badge">' + (streak > 0 ? '🔥' : '🎯') + '</span>' +
         '<div class="quest-mid"><div class="quest-name">' + esc(q.name) + '</div>' +
         '<div class="quest-vibe"><span class="type-tag ' + type + '">' + type + '</span>' +
         '<span>' + freqLabel + (streak > 0 ? ' · ' + streak + streakUnit + ' streak' : '') + '</span>' +
         deadlineHTML + '</div></div>' +
-        '<div class="quest-actions"><button class="btn small' + (finished || doneToday ? '' : ' primary') + ' checkin-btn"' +
-        (finished || doneToday ? ' disabled' : '') + '>' + btnLabel + '</button>' +
+        '<div class="quest-actions"><button class="checkin-btn ' + checkinClass + '" title="' + checkinTitle + '"' +
+        (finished || doneToday ? ' disabled' : '') + '>✓</button>' +
         '<button class="icon-btn" title="edit">✏️</button>' +
         '<button class="icon-btn del" title="delete">✕</button></div></li>');
       var checkinBtn = li.querySelector('.checkin-btn');
@@ -1113,7 +1114,7 @@
     wrap.appendChild(card);
 
     // help note
-    wrap.appendChild(el('<p class="muted small">Uses the Mifflin–St Jeor equation for BMR, an activity multiplier for maintenance calories, then adjusts for your goal. These are estimates — adjust based on real-world results.</p>'));
+    wrap.appendChild(el('<p class="muted small">uses the Mifflin–St Jeor equation for BMR, adjusted for activity and goal — these are estimates, so tune them based on real results.</p>'));
 
     // danger zone
     var dz = el('<div class="card danger"></div>');
