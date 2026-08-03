@@ -131,10 +131,12 @@ var Store = (function () {
   function save() {
     reconcileDailyBonuses();
     reconcileQuestStreaks();
-    // logging a meal itself is no longer worth points (only hitting the
-    // calorie/protein target band is, via reconcileDailyBonuses above) —
-    // strips any old flat per-log points still sitting in history.
+    reconcileVibeStreaks();
+    // logging a meal (or a single day's vibe check-in) isn't worth points
+    // itself anymore — strips any old flat per-log points still sitting in
+    // history so past changes to the rules don't leave stale point balances.
     state.pointsLog = state.pointsLog.filter(function (e) { return !(e.key && e.key.indexOf('meal:') === 0); });
+    state.pointsLog = state.pointsLog.filter(function (e) { return !(e.key && e.key.indexOf('vibe:') === 0); });
     try { localStorage.setItem(KEY, JSON.stringify(state)); }
     catch (e) { console.error('Save failed', e); }
     scheduleCloudPush();
@@ -384,14 +386,38 @@ var Store = (function () {
   }
 
   // ---- vibe check (mood, one tap/day — never cross-referenced with food) ----
+  // logging a single day's vibe isn't worth points itself — only keeping a
+  // 7-day check-in streak going is (see vibeStreak/reconcileVibeStreaks).
   function logVibe(level) {
     var today = todayISO();
     var existing = state.vibes.find(function (v) { return v.date === today; });
     if (existing) { existing.level = Number(level); save(); return 0; }
     state.vibes.push({ date: today, level: Number(level) });
-    addPoints(5, 'Vibe check-in', 'vibe:' + today);
     save();
-    return 5;
+    var streak = vibeStreak();
+    return (streak > 0 && streak % 7 === 0) ? Formulas.VIBE_STREAK_BONUS : 0;
+  }
+
+  // consecutive-day vibe check-in streak, ending today
+  function vibeStreak() {
+    var days = {};
+    state.vibes.forEach(function (v) { days[v.date] = true; });
+    var streak = 0;
+    var d = new Date(todayISO() + 'T00:00:00');
+    while (days[d.toISOString().slice(0, 10)]) { streak++; d.setDate(d.getDate() - 1); }
+    return streak;
+  }
+
+  // recomputes streak-milestone bonuses from scratch every save, same
+  // no-drift pattern as reconcileQuestStreaks/reconcileDailyBonuses.
+  function reconcileVibeStreaks() {
+    state.pointsLog = state.pointsLog.filter(function (e) {
+      return !(e.key && e.key.indexOf('vibestreak:') === 0);
+    });
+    var milestones = Math.floor(vibeStreak() / 7);
+    for (var i = 1; i <= milestones; i++) {
+      addPoints(Formulas.VIBE_STREAK_BONUS, 'Vibe check-in — 7 day streak', 'vibestreak:' + i);
+    }
   }
   function vibeToday() {
     var today = todayISO();
@@ -555,6 +581,7 @@ var Store = (function () {
     isRestDay: isRestDay,
     logVibe: logVibe,
     vibeToday: vibeToday,
+    vibeStreak: vibeStreak,
     vibeByWeekday: vibeByWeekday,
     togglePeriodDay: togglePeriodDay,
     logPeriodRange: logPeriodRange,

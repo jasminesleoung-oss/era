@@ -81,9 +81,9 @@
   // ==== HOME (tracker + plan + log, all in one) =======================
   function calorieVibe(eaten, target) {
     if (!target) return '';
-    if (eaten <= 0) return 'nothing logged yet — let’s get some fuel in you ✨';
+    if (eaten <= 0) return 'nothing logged yet — let’s fuel up ✨';
     var pct = eaten / target;
-    if (pct < 0.5) return 'good start, keep fueling up — you’re not done yet 🍽️';
+    if (pct < 0.5) return 'good start, keep fueling up 🍽️';
     if (pct < 0.9) return 'getting there, halfway to iconic 👀';
     if (pct <= 1.1) return 'target: secured 🎯 certified iconic behavior';
     return 'logged & moving on, no notes 💅';
@@ -722,9 +722,9 @@
         '<div class="quest-mid"><div class="quest-name">' + esc(q.name) + '</div>' +
         '<div class="quest-vibe"><span class="type-tag ' + type + '">' + type + '</span>' +
         '<span>' + esc(vibe) + '</span>' + (q.done ? '' : deadlineTag(q.deadline)) + '</div></div>' +
-        pillHTML +
+        '<div class="quest-actions">' + pillHTML +
         '<button class="icon-btn" title="edit">✏️</button>' +
-        '<button class="icon-btn del" title="delete">✕</button></li>');
+        '<button class="icon-btn del" title="delete">✕</button></div></li>');
       li.querySelector('.quest-check').addEventListener('click', function () {
         var nowDone = Store.toggleQuest(q.id);
         var doneMsg = q.points > 0 ? 'handled it 💅 +' + q.points + ' pts' : 'done ✓';
@@ -754,10 +754,10 @@
         '<div class="quest-vibe"><span class="type-tag ' + type + '">' + type + '</span>' +
         '<span>' + freqLabel + (streak > 0 ? ' · ' + streak + streakUnit + ' streak' : '') + '</span>' +
         deadlineHTML + '</div></div>' +
-        '<button class="btn small' + (finished || doneToday ? '' : ' primary') + ' checkin-btn"' +
+        '<div class="quest-actions"><button class="btn small' + (finished || doneToday ? '' : ' primary') + ' checkin-btn"' +
         (finished || doneToday ? ' disabled' : '') + '>' + btnLabel + '</button>' +
         '<button class="icon-btn" title="edit">✏️</button>' +
-        '<button class="icon-btn del" title="delete">✕</button></li>');
+        '<button class="icon-btn del" title="delete">✕</button></div></li>');
       var checkinBtn = li.querySelector('.checkin-btn');
       if (checkinBtn) {
         checkinBtn.addEventListener('click', function () {
@@ -921,8 +921,11 @@
       var b = el('<button type="button" class="vibe-btn' + (todayLevel === v.level ? ' active' : '') + '">' +
         '<span class="vibe-emoji">' + v.emoji + '</span><span class="vibe-label">' + v.label + '</span></button>');
       b.addEventListener('click', function () {
-        var pts = Store.logVibe(v.level);
-        toast(pts > 0 ? 'logged ✨ +' + pts + ' pts' : 'updated ✨');
+        var alreadyLoggedToday = Store.vibeToday() !== null;
+        var bonus = Store.logVibe(v.level);
+        if (alreadyLoggedToday) toast('updated ✨');
+        else if (bonus > 0) toast('logged ✨ +' + bonus + ' pts — 7 day streak 🔥');
+        else toast('logged ✨');
         render();
       });
       vibeGrid.appendChild(b);
@@ -934,7 +937,7 @@
     var insightsFold = el('<details class="fold" style="margin-top:14px"></details>');
     var chartHTML;
     if (loggedCount < 5) {
-      chartHTML = '<p class="muted small" style="margin-top:12px">log a few more vibe checks to unlock insights ✨</p>';
+      chartHTML = '<p class="muted small" style="margin-top:12px">log a few more vibe checks to unlock ✨</p>';
     } else {
       chartHTML = '<div class="weekday-chart">' + weekday.map(function (avg, i) {
         var pct = avg ? Math.round((avg / 5) * 100) : 4;

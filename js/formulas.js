@@ -76,6 +76,7 @@ var Formulas = (function () {
 
   var DAILY_PROTEIN_BONUS = 25;
   var DAILY_CALORIE_BONUS = 25;
+  var VIBE_STREAK_BONUS = 50; // awarded once per 7-day consecutive vibe check-in streak, not per log
 
   // ---- Quests: the more you're dreading it, the bigger the payout ----
   // health quests (medical/wellness upkeep) pay full; side quests (general
@@ -122,6 +123,7 @@ var Formulas = (function () {
     microPoints: microPoints,
     daysUntil: daysUntil,
     DAILY_PROTEIN_BONUS: DAILY_PROTEIN_BONUS,
-    DAILY_CALORIE_BONUS: DAILY_CALORIE_BONUS
+    DAILY_CALORIE_BONUS: DAILY_CALORIE_BONUS,
+    VIBE_STREAK_BONUS: VIBE_STREAK_BONUS
   };
 })();

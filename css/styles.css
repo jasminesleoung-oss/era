@@ -260,8 +260,9 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
 .reward-bow .bow { width: 30px; height: 26px; filter: drop-shadow(0 1px 5px rgba(255,92,168,.55)); }
 .reward-cost { color: var(--gold); font-weight: 800; font-size: 15px; }
 .reward-name { font-weight: 700; font-size: 15px; flex: 1; letter-spacing: -.2px; }
-.reward-actions { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.reward-actions .btn { flex: 1; min-width: 0; }
+.reward-actions { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.reward-actions .btn { flex: 1; min-width: 0; padding-left: 4px; padding-right: 4px; }
+.reward-actions .icon-btn { padding: 4px 5px; }
 
 /* quests */
 .annoyance-grid { display: flex; flex-direction: column; gap: 7px; margin-bottom: 4px; }
@@ -282,9 +283,10 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
 
 .quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
 .quest-item {
-  display: flex; align-items: center; gap: 12px; padding: 13px 14px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 13px 14px;
   background: var(--surface-2); border-radius: 13px; border: 1px solid transparent;
 }
+.quest-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .quest-check {
   flex: none; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line);
   background: transparent; cursor: pointer; display: grid; place-items: center;
@@ -298,7 +300,7 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
   flex: none; width: 26px; height: 26px; border-radius: 50%;
   display: grid; place-items: center; font-size: 14px; background: rgba(198,255,58,.14);
 }
-.quest-mid { flex: 1; min-width: 0; }
+.quest-mid { flex: 1; min-width: 150px; }
 .quest-name { font-size: 14.5px; font-weight: 600; }
 .quest-vibe { font-size: 12px; color: var(--muted); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
@@ -347,15 +349,15 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
 
 /* weekly lineup checklist */
 .lineup-list { margin-top: 6px; }
-.lineup-row { justify-content: flex-start !important; align-items: center; gap: 10px; }
+.lineup-row { flex-wrap: wrap; justify-content: flex-start !important; align-items: center; gap: 8px 10px; }
 .lineup-check { flex: none; width: 22px; text-align: center; font-weight: 900; color: var(--muted); }
 .lineup-row.done .lineup-check { color: var(--lime); }
 button.lineup-check { background: none; border: none; padding: 0; font: inherit; font-size: 16px; cursor: pointer; transition: color .12s ease; }
 button.lineup-check:hover { color: var(--lime); }
-.lineup-mid { flex: 1; min-width: 0; }
+.lineup-mid { flex: 1; min-width: 230px; }
 .lineup-label { font-weight: 700; }
 .lineup-row.done .lineup-label { opacity: .75; }
-.lineup-add { flex: none; }
+.lineup-add { flex: none; margin-left: auto; }
 
 /* auth gate + account */
 .seg { display: flex; gap: 6px; background: var(--surface-2); padding: 5px; border-radius: 12px; margin-bottom: 14px; }
