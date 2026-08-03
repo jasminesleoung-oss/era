@@ -398,13 +398,21 @@ var Store = (function () {
     return (streak > 0 && streak % 7 === 0) ? Formulas.VIBE_STREAK_BONUS : 0;
   }
 
-  // consecutive-day vibe check-in streak, ending today
+  // Streak bonuses only launched on this date — check-ins from before then
+  // don't retroactively count, so switching to streak-based rewards can't
+  // hand out a windfall for a "streak" that only exists in hindsight.
+  var VIBE_STREAK_LAUNCH_DATE = '2026-08-03';
+
+  // consecutive-day vibe check-in streak, ending today (never counts further
+  // back than VIBE_STREAK_LAUNCH_DATE)
   function vibeStreak() {
     var days = {};
     state.vibes.forEach(function (v) { days[v.date] = true; });
     var streak = 0;
     var d = new Date(todayISO() + 'T00:00:00');
-    while (days[d.toISOString().slice(0, 10)]) { streak++; d.setDate(d.getDate() - 1); }
+    while (d.toISOString().slice(0, 10) >= VIBE_STREAK_LAUNCH_DATE && days[d.toISOString().slice(0, 10)]) {
+      streak++; d.setDate(d.getDate() - 1);
+    }
     return streak;
   }
 
