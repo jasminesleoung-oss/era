@@ -394,8 +394,6 @@
     lineupCard.appendChild(el('<div class="card-head"><h3>fit check 💪</h3>' +
       '<button class="btn small" id="toggleWorkoutForm">+ log</button></div>'));
     lineupCard.appendChild(el('<p class="vibe-note">hit each once, any order, whenever works 🎲</p>'));
-    lineupCard.appendChild(el('<button class="link-btn" id="openExercises">📈 track your exercise numbers</button>'));
-    lineupCard.querySelector('#openExercises').addEventListener('click', function () { setView('exercises'); });
 
     var lineupList = el('<ul class="mini-list lineup-list"></ul>');
     slots.forEach(function (slot) {
@@ -423,6 +421,9 @@
     });
     lineupList.appendChild(restLi);
     lineupCard.appendChild(lineupList);
+
+    lineupCard.appendChild(el('<button class="link-btn" id="openExercises">📈 track your exercise numbers</button>'));
+    lineupCard.querySelector('#openExercises').addEventListener('click', function () { setView('exercises'); });
 
     var weekWorkouts = Store.workoutsThisWeek().slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
     if (weekWorkouts.length) {
@@ -728,16 +729,17 @@
   };
 
   // ==== QUESTS =======================================================
-  function deadlineTag(deadline) {
+  function deadlineTag(deadline, verb) {
+    verb = verb || 'due';
     if (!deadline) return '';
     var days = Formulas.daysUntil(deadline);
     var label, cls;
     if (days < 0) { label = 'overdue ' + Math.abs(days) + 'd 💀 no judgment but do it'; cls = 'over'; }
-    else if (days === 0) { label = 'due today 🚨'; cls = 'urgent'; }
-    else if (days === 1) { label = 'due tomorrow ⏰'; cls = 'urgent'; }
+    else if (days === 0) { label = verb + ' today 🚨'; cls = 'urgent'; }
+    else if (days === 1) { label = verb + ' tomorrow ⏰'; cls = 'urgent'; }
     else if (days <= 3) { label = days + 'd left — crunch time ⏰'; cls = 'soon'; }
     else {
-      label = 'due ' + new Date(deadline + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+      label = verb + ' ' + new Date(deadline + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
         ' · ' + days + 'd left';
       cls = 'ok';
     }
@@ -767,8 +769,8 @@
 
   views.quests = function () {
     var wrap = el('<section class="stack"></section>');
-    wrap.appendChild(el('<div class="hello"><h1>quests ' + BOW + '</h1>' +
-      '<p class="muted">health quests pay more than side quests — the more you’re dreading it, the bigger the payout 💰</p></div>'));
+    wrap.appendChild(el('<div class="hello"><h1>quests 🗺️</h1>' +
+      '<p class="muted">health quests pay more than side quests; the more you dread it, the bigger the payout 💰</p></div>'));
 
     var selectedLevel = 3;
     var selectedType = 'health';
@@ -842,18 +844,18 @@
         annGrid.appendChild(b);
       });
     }
+    // one-off/reminder value is already shown right on the selected
+    // annoyance tile — only the recurring split (per-check-in + streak
+    // bonus) isn't shown anywhere else, so that's the only case worth a
+    // separate preview line.
     function updatePreview() {
-      if (!selectedLevel) {
-        preview.innerHTML = 'just a nudge — no points attached 🔔';
+      if (!selectedLevel || selectedKind === 'oneoff') {
+        preview.innerHTML = '';
         return;
       }
-      if (selectedKind === 'oneoff') {
-        preview.innerHTML = 'worth <strong>✦ ' + Formulas.questPoints(selectedLevel, selectedType) + '</strong> when you handle it 💪';
-      } else {
-        var bonusWhen = selectedFreq === 'daily' ? 'every 7-day streak' : 'every week you hit ' + selectedFreq + 'x';
-        preview.innerHTML = 'worth <strong>✦ ' + Formulas.microPoints(selectedLevel, selectedType) + '</strong> per check-in + ' +
-          '<strong>✦ ' + Formulas.questPoints(selectedLevel, selectedType) + '</strong> bonus ' + bonusWhen + ' 🔥';
-      }
+      var bonusWhen = selectedFreq === 'daily' ? 'every 7-day streak' : 'every week you hit ' + selectedFreq + 'x';
+      preview.innerHTML = 'worth <strong>✦ ' + Formulas.microPoints(selectedLevel, selectedType) + '</strong> per check-in + ' +
+        '<strong>✦ ' + Formulas.questPoints(selectedLevel, selectedType) + '</strong> bonus ' + bonusWhen + ' 🔥';
     }
     renderGrid(); updatePreview();
 
@@ -940,13 +942,12 @@
     function oneOffItem(q) {
       var pillHTML = q.points > 0 ? '<span class="pill">✦ ' + q.points + '</span>' : '<span class="pill reminder">🔔</span>';
       var li = el('<li class="quest-item' + (q.done ? ' done' : '') + '">' +
-        '<button class="quest-check" title="mark done">✓</button>' +
-        '<div class="quest-mid"><div class="quest-name">' + esc(q.name) + '</div>' +
+        '<div class="quest-mid clickable" title="tap to mark done"><div class="quest-name">' + esc(q.name) + '</div>' +
         '<div class="quest-vibe">' + (q.done ? '' : deadlineTag(q.deadline)) + '</div></div>' +
         '<div class="quest-actions">' + pillHTML +
         '<button class="icon-btn" title="edit">✏️</button>' +
         '<button class="icon-btn del" title="delete">✕</button></div></li>');
-      li.querySelector('.quest-check').addEventListener('click', function () {
+      li.querySelector('.quest-mid').addEventListener('click', function () {
         var nowDone = Store.toggleQuest(q.id);
         var doneMsg = q.points > 0 ? 'handled it 💅 +' + q.points + ' pts' : 'done ✓';
         toast(nowDone ? doneMsg : 'back on the list 🫡');
@@ -966,7 +967,7 @@
       var doneToday = q.checkins.indexOf(today) !== -1;
       var deadlineHTML = finished
         ? '<span class="deadline-tag ok">ended ' + new Date(q.endDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + '</span>'
-        : deadlineTag(q.endDate);
+        : deadlineTag(q.endDate, 'ends');
       var checkinTitle = finished ? 'period ended' : (doneToday ? 'done today' : 'check in');
       var checkinClass = finished ? 'finished' : (doneToday ? 'done-today' : 'primary');
       var li = el('<li class="quest-item recurring">' +
@@ -1131,7 +1132,7 @@
 
   views.you = function () {
     var wrap = el('<section class="stack"></section>');
-    wrap.appendChild(el('<div class="hello"><h1>you 🎀</h1><p class="muted">quick check-ins, just for you ✨</p></div>'));
+    wrap.appendChild(el('<div class="hello"><h1>you 🪞</h1><p class="muted">quick check-ins, just for you 💗</p></div>'));
 
     // ---- vibe check ----
     var todayLevel = Store.vibeToday();
@@ -1219,7 +1220,7 @@
           lines.push('rough next-period estimate: ' + prettyDate(summary.nextPredicted) + ' — a loose guess, not something to plan around yet');
         }
       } else {
-        lines.push('log your next period to start seeing average cycle length');
+        lines.push('log your next period to see average cycle length');
       }
       var infoBox = el('<div class="floor-note" style="margin-top:10px"></div>');
       infoBox.innerHTML = lines.map(function (l) { return esc(l); }).join('<br>');

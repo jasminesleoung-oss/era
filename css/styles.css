@@ -330,20 +330,16 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
   background: var(--surface-2); border-radius: 13px; border: 1px solid transparent;
 }
 .quest-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-.quest-check {
-  flex: none; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line);
-  background: transparent; cursor: pointer; display: grid; place-items: center;
-  color: transparent; font-size: 14px; font-weight: 900; transition: all .15s ease;
-}
-.quest-check:hover { border-color: var(--lime); }
 .quest-item.done { opacity: .55; }
-.quest-item.done .quest-check { background: var(--lime); border-color: var(--lime); color: #12160a; }
 .quest-item.done .quest-name { text-decoration: line-through; }
 .streak-badge {
   flex: none; width: 26px; height: 26px; border-radius: 50%;
   display: grid; place-items: center; font-size: 14px; background: rgba(198,255,58,.14);
 }
 .quest-mid { flex: 1; min-width: 130px; }
+.quest-mid.clickable { cursor: pointer; border-radius: 8px; transition: opacity .12s ease; }
+.quest-mid.clickable:hover { opacity: .82; }
+.quest-mid.clickable:active { opacity: .65; }
 .checkin-btn {
   flex: none; width: 30px; height: 30px; padding: 0; border-radius: 50%;
   border: 2px solid var(--line); background: transparent; color: transparent;
