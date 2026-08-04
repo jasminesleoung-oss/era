@@ -323,7 +323,6 @@
     var t = Formulas.targets(Store.state.profile);
     var today = Store.todayISO();
     var meals = Store.mealsOn(today);
-    var workouts = Store.workoutsOn(today);
     var firstName = (Store.state.profile.name || '').trim().split(/\s+/)[0];
 
     wrap.appendChild(el(
@@ -360,17 +359,16 @@
     grid.appendChild(metricCard('fat', fatEaten, t.fat, 'g'));
     macCard.appendChild(grid);
 
-    macCard.appendChild(el('<p class="muted small" style="margin-top:12px">goal: ' + esc(t.goalLabel) + ' · ' + esc(t.activityLabel) +
-      ' · BMR ' + t.bmr + ' · maintenance ~' + t.tdee + ' kcal</p>'));
-    macCard.appendChild(el('<div class="floor-note">💛 we never set your target below <strong>' + t.minCalories + ' kcal</strong>' +
-      (t.floored ? ' — held here instead of a steeper deficit.' : '.') + '</div>'));
+    macCard.appendChild(el('<p class="muted small" style="margin-top:12px">weight loss: <strong>' + t.minCalories +
+      ' kcal</strong> · maintenance: <strong>' + t.tdee + ' kcal</strong>' +
+      (t.floored ? ' — your target’s held at the floor.' : '') + '</p>'));
 
     if (meals.length) {
       var foodLogFold = el('<details class="fold" style="margin-top:14px"></details>');
-      foodLogFold.innerHTML = '<summary>today’s food log 📋</summary><div class="fold-body"><ul class="entry-list" id="foodLogList" style="margin-top:12px"></ul></div>';
+      foodLogFold.innerHTML = '<summary>today’s fuel log 📋</summary><div class="fold-body"><ul class="entry-list" id="foodLogList" style="margin-top:12px"></ul></div>';
       var foodLogList = foodLogFold.querySelector('#foodLogList');
       meals.forEach(function (m) {
-        var li = el('<li><span class="tag m">food</span>' +
+        var li = el('<li>' +
           '<span class="entry-main">' + esc(m.name) + ' · ' + num(m.calories) + ' kcal · ' + num(m.protein) + 'g P</span>' +
           '<button class="icon-btn" title="edit">✏️</button>' +
           '<button class="icon-btn" title="delete">✕</button></li>');
@@ -388,12 +386,12 @@
     macCard.appendChild(mFormWrap);
     wrap.appendChild(macCard);
 
-    // ---- this week's lineup (unordered weekly movement checklist) ----
+    // ---- fit check (unordered weekly movement checklist) ----
     var slots = Plans.fillWeekSlots(Store.workoutsThisWeek());
     var restTaken = Store.restDaysTakenThisWeek();
 
     var lineupCard = el('<div class="card"></div>');
-    lineupCard.appendChild(el('<div class="card-head"><h3>this week’s lineup 💪</h3>' +
+    lineupCard.appendChild(el('<div class="card-head"><h3>fit check 💪</h3>' +
       '<button class="btn small" id="toggleWorkoutForm">+ log</button></div>'));
     lineupCard.appendChild(el('<p class="vibe-note">hit each once, any order, whenever works 🎲</p>'));
     lineupCard.appendChild(el('<button class="link-btn" id="openExercises">📈 track your exercise numbers</button>'));
@@ -426,13 +424,15 @@
     lineupList.appendChild(restLi);
     lineupCard.appendChild(lineupList);
 
-    if (workouts.length) {
+    var weekWorkouts = Store.workoutsThisWeek().slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
+    if (weekWorkouts.length) {
       var workoutLogFold = el('<details class="fold" style="margin-top:14px"></details>');
-      workoutLogFold.innerHTML = '<summary>today’s workout log 📋</summary><div class="fold-body"><ul class="entry-list" id="workoutLogList" style="margin-top:12px"></ul></div>';
+      workoutLogFold.innerHTML = '<summary>this week’s fit log 📋</summary><div class="fold-body"><ul class="entry-list" id="workoutLogList" style="margin-top:12px"></ul></div>';
       var workoutLogList = workoutLogFold.querySelector('#workoutLogList');
-      workouts.forEach(function (w) {
-        var li = el('<li><span class="tag w">workout</span>' +
-          '<span class="entry-main">' + esc(w.name || w.type) + ' · ' + num(w.durationMin) + ' min · ' + esc(w.intensity) + '</span>' +
+      weekWorkouts.forEach(function (w) {
+        var shortDate = new Date(w.date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        var li = el('<li>' +
+          '<span class="entry-main">' + esc(shortDate) + ' · ' + esc(w.name || w.type) + ' · ' + num(w.durationMin) + ' min · ' + esc(w.intensity) + '</span>' +
           '<button class="icon-btn" title="edit">✏️</button>' +
           '<button class="icon-btn" title="delete">✕</button></li>');
         li.querySelector('[title=edit]').addEventListener('click', function () { editWorkout(w); });
@@ -549,14 +549,15 @@
   };
 
   function metricCard(label, val, target, unit) {
-    var pct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : 0;
+    var pct = target > 0 ? Math.round((val / target) * 100) : 0;
+    var barPct = Math.min(100, pct);
     var over = val > target * 1.05;
     var c = el('<div class="metric"></div>');
     c.innerHTML =
       '<div class="metric-top"><span class="metric-label">' + label + '</span>' +
       '<span class="metric-pct' + (over ? ' over' : '') + '">' + pct + '%</span></div>' +
       '<div class="metric-val">' + Math.round(val) + ' <span class="muted">/ ' + target + ' ' + unit + '</span></div>' +
-      '<div class="bar"><div class="bar-fill' + (over ? ' over' : '') + '" style="width:' + Math.min(100, pct) + '%"></div></div>';
+      '<div class="bar"><div class="bar-fill' + (over ? ' over' : '') + '" style="width:' + barPct + '%"></div></div>';
     return c;
   }
 
@@ -602,7 +603,7 @@
     }
 
     var c = el('<div class="card"></div>');
-    c.innerHTML = '<div class="streak-split">' +
+    c.innerHTML = '<h3>streak check 🔥</h3><div class="streak-split">' +
       block('💪', workoutStreak, 'workout day') +
       block('🍽️', foodStreak, 'food day') +
       '</div>';
