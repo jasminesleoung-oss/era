@@ -203,6 +203,7 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
 .mini-list li { display: flex; justify-content: space-between; align-items: center; padding: 11px 13px; background: var(--surface-2); border-radius: 12px; font-size: 14px; }
 .pill { background: rgba(198,255,58,.16); color: var(--lime); font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
 .pill.reminder { background: rgba(159,176,138,.16); color: var(--muted); }
+.pill.spent { background: rgba(255,92,168,.16); color: var(--pink); }
 
 .entry-list li { display: flex; align-items: center; gap: 10px; padding: 11px 13px; background: var(--surface-2); border-radius: 12px; }
 .entry-main { flex: 1; font-size: 14px; }
@@ -220,6 +221,11 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
   max-width: 100%; font-family: inherit;
 }
 .form-grid input:focus, .form-grid select:focus { outline: none; border-color: var(--lime); box-shadow: 0 0 0 3px rgba(198,255,58,.14); }
+/* iOS Safari gives date/time inputs an internal minimum width that plain
+   min-width:0 doesn't override, so a filled-in date can still force the
+   input past its grid track — this webkit-specific property is the actual
+   fix for that. */
+.form-grid input[type="date"] { min-width: 0; -webkit-min-logical-width: 0; }
 .form-grid button { margin-top: 4px; }
 
 /* recent foods */

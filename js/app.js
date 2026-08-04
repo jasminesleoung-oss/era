@@ -27,6 +27,31 @@
   }
   function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
+  // ---- in-progress form drafts (survives the PWA getting backgrounded and
+  // reloaded mid-entry) — local-only, never synced, cleared on submit or
+  // on an explicit close so it doesn't linger once you're done with it. ----
+  var FORM_DRAFT_KEY = 'era:formDraft';
+  function saveFormDraft(kind, data) {
+    try {
+      var all = JSON.parse(localStorage.getItem(FORM_DRAFT_KEY) || '{}');
+      all[kind] = data;
+      localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(all));
+    } catch (e) { /* ignore — drafts are a nice-to-have */ }
+  }
+  function loadFormDraft(kind) {
+    try {
+      var all = JSON.parse(localStorage.getItem(FORM_DRAFT_KEY) || '{}');
+      return all[kind] || null;
+    } catch (e) { return null; }
+  }
+  function clearFormDraft(kind) {
+    try {
+      var all = JSON.parse(localStorage.getItem(FORM_DRAFT_KEY) || '{}');
+      delete all[kind];
+      localStorage.setItem(FORM_DRAFT_KEY, JSON.stringify(all));
+    } catch (e) { /* ignore */ }
+  }
+
   var BOW = '<svg class="bow" viewBox="0 0 64 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
     '<path class="ink" d="M31 27 L23 51 L27 46.5 L29.5 52 L33 30 Z"/>' +
     '<path class="ink" d="M33 27 L41 51 L37 46.5 L34.5 52 L31 30 Z"/>' +
@@ -469,6 +494,7 @@
       if (showing) {
         editingWorkoutId = null;
         wFormWrap.querySelector('button[type=submit]').textContent = 'log workout';
+        clearFormDraft('workout');
       }
       wFormWrap.style.display = showing ? 'none' : 'block';
       if (!showing) wFormWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -478,12 +504,46 @@
       if (showing) {
         editingMealId = null;
         mFormWrap.querySelector('button[type=submit]').textContent = 'log food';
+        clearFormDraft('food');
       }
       mFormWrap.style.display = showing ? 'none' : 'block';
       if (!showing) mFormWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
-    wireWorkoutForm(wFormWrap, function () { render(); });
-    wireFoodForm(mFormWrap, function () { render(); });
+
+    // ---- draft persistence: keep whatever's typed if the app gets
+    // backgrounded and reloaded mid-entry, instead of silently clearing it ----
+    function wireDraft(kind, formWrap, formSelector, fieldNames, editingIdGetter, editingIdSetter) {
+      var form = formWrap.querySelector(formSelector);
+      // scoped to formWrap (not the <form>) and by plain attribute selector,
+      // not form[name] — some fields (like the food search box) live outside
+      // the <form> tag itself, linked via form="", and that cross-element
+      // association doesn't reliably resolve while the tree is still
+      // detached (i.e. exactly when this runs, before render() inserts it).
+      function fieldEl(n) { return formWrap.querySelector('[name="' + n + '"]'); }
+      function save() {
+        var fields = {};
+        fieldNames.forEach(function (n) { var f = fieldEl(n); fields[n] = f ? f.value : ''; });
+        saveFormDraft(kind, {
+          editingId: editingIdGetter(),
+          submitLabel: formWrap.querySelector('button[type=submit]').textContent,
+          fields: fields
+        });
+      }
+      form.addEventListener('input', save);
+      var draft = loadFormDraft(kind);
+      if (draft) {
+        editingIdSetter(draft.editingId || null);
+        formWrap.querySelector('button[type=submit]').textContent = draft.submitLabel || formWrap.querySelector('button[type=submit]').textContent;
+        fieldNames.forEach(function (n) { var f = fieldEl(n); if (f && draft.fields[n] != null) f.value = draft.fields[n]; });
+        formWrap.style.display = 'block';
+      }
+    }
+    wireDraft('workout', wFormWrap, '#wForm', ['name', 'type', 'durationMin', 'intensity', 'notes'],
+      function () { return editingWorkoutId; }, function (v) { editingWorkoutId = v; });
+    wireDraft('food', mFormWrap, '#mForm', ['name', 'grams', 'calories', 'protein', 'carbs', 'fat'],
+      function () { return editingMealId; }, function (v) { editingMealId = v; });
+    wireWorkoutForm(wFormWrap, function () { clearFormDraft('workout'); render(); });
+    wireFoodForm(mFormWrap, function () { clearFormDraft('food'); render(); });
 
     return wrap;
   };
@@ -548,6 +608,39 @@
       '</div>';
     return c;
   }
+
+  // ==== POINTS HISTORY (full ledger, reached by tapping the points badge —
+  // not a tab. Same pointsLog powers both earning and spending entries.) ====
+  views.pointsHistory = function () {
+    var wrap = el('<section class="stack"></section>');
+    wrap.appendChild(el('<button class="link-btn back-link" id="phBack">← back to home</button>'));
+    wrap.appendChild(el('<div class="hello"><h1>points history ✦</h1>' +
+      '<p class="muted">everywhere you’ve earned (and spent) points</p></div>'));
+    wrap.querySelector('#phBack').addEventListener('click', function () { setView('dashboard'); });
+
+    var log = Store.state.pointsLog.slice().sort(function (a, b) {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return b.id.localeCompare(a.id);
+    });
+
+    var card = el('<div class="card"></div>');
+    if (!log.length) {
+      card.appendChild(el('<p class="muted">no points yet — go earn some ✨</p>'));
+    } else {
+      var ul = el('<ul class="entry-list"></ul>');
+      log.forEach(function (e) {
+        var positive = e.delta >= 0;
+        var li = el('<li><span class="entry-main">' + esc(e.reason) + '</span>' +
+          '<span class="muted small">' + prettyDate(e.date) + '</span>' +
+          '<span class="pill' + (positive ? '' : ' spent') + '">' + (positive ? '+' : '') + e.delta + '</span></li>');
+        ul.appendChild(li);
+      });
+      card.appendChild(ul);
+    }
+    wrap.appendChild(card);
+
+    return wrap;
+  };
 
   // ==== EXERCISE TRACKER (per-exercise progress log, reached via a link on
   // the Home lineup card — not a tab. One flat list, since real exercises
@@ -708,7 +801,6 @@
       '<div class="annoyance-grid" id="annoyanceGrid"></div>' +
       '<div class="quest-preview" id="questPreview"></div>' +
       '<button class="btn primary wide" id="qAdd" type="button" style="margin-top:10px">add it to the list</button>';
-    wrap.appendChild(addCard);
 
     addCard.querySelectorAll('#typeSeg .seg-btn').forEach(function (b) {
       b.addEventListener('click', function () {
@@ -934,6 +1026,7 @@
     if (finished.length) {
       wrap.appendChild(questSection('handled 💅', finished, ''));
     }
+    wrap.appendChild(addCard);
     return wrap;
   };
 
@@ -1267,7 +1360,7 @@
     if (b) setView(b.dataset.view);
   });
 
-  document.getElementById('pointsBadge').addEventListener('click', function () { setView('rewards'); });
+  document.getElementById('pointsBadge').addEventListener('click', function () { setView('pointsHistory'); });
   document.getElementById('settingsBtn').addEventListener('click', function () { setView('profile'); });
 
   document.getElementById('exportBtn').addEventListener('click', function () {

@@ -148,8 +148,8 @@ var Store = (function () {
     return state.pointsLog.reduce(function (s, e) { return s + e.delta; }, 0);
   }
 
-  function addPoints(delta, reason, key) {
-    state.pointsLog.push({ id: uid(), date: todayISO(), delta: delta, reason: reason, key: key || null });
+  function addPoints(delta, reason, key, date) {
+    state.pointsLog.push({ id: uid(), date: date || todayISO(), delta: delta, reason: reason, key: key || null });
   }
 
   function removePointsByKey(key) {
@@ -177,12 +177,12 @@ var Store = (function () {
       var d = byDay[date];
       if (d.count === 0) return;
       if (d.protein >= t.protein * 0.9) {
-        addPoints(Formulas.DAILY_PROTEIN_BONUS, 'Hit protein goal', 'bonus:protein:' + date);
+        addPoints(Formulas.DAILY_PROTEIN_BONUS, 'Hit protein goal', 'bonus:protein:' + date, date);
       }
       // landed in a healthy band AROUND the target — rewards hitting the goal,
       // NOT under-eating (the lower bound requires eating enough).
       if (d.cal >= t.calories * 0.9 && d.cal <= t.calories * 1.1) {
-        addPoints(Formulas.DAILY_CALORIE_BONUS, 'Hit your calorie target', 'bonus:calorie:' + date);
+        addPoints(Formulas.DAILY_CALORIE_BONUS, 'Hit your calorie target', 'bonus:calorie:' + date, date);
       }
     });
   }
