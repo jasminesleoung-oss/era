@@ -281,6 +281,7 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
 .floor-note strong { color: var(--gold); }
 .tips { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 7px; font-size: 14px; }
 .tips li { line-height: 1.45; }
+.recap-text { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--text); }
 .week { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .day { display: grid; grid-template-columns: 46px 1fr; gap: 12px; align-items: baseline; padding: 12px 13px; background: var(--surface-2); border-radius: 12px; }
 .day-name { font-weight: 800; color: var(--lime); font-size: 13px; }
