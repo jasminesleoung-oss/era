@@ -500,12 +500,27 @@
     return c;
   }
 
+  // consecutive days (ending today) where `days[iso]` is true
+  function consecutiveStreak(days) {
+    var streak = 0;
+    var d = new Date(Store.todayISO() + 'T00:00:00');
+    while (true) {
+      var iso = d.toISOString().slice(0, 10);
+      if (days[iso]) { streak++; d.setDate(d.getDate() - 1); }
+      else break;
+    }
+    return streak;
+  }
+
   function streakCard() {
-    // a day counts toward the streak if you worked out OR your calories
-    // landed on target — not just for logging *something*. Same 0.9–1.1x
-    // band as the daily calorie bonus, so "on track" means one thing app-wide.
-    var days = {};
-    Store.state.workouts.forEach(function (w) { days[w.date] = true; });
+    var workoutDays = {};
+    Store.state.workouts.forEach(function (w) { workoutDays[w.date] = true; });
+    var workoutStreak = consecutiveStreak(workoutDays);
+
+    // food streak: calories landed on target, not just "something logged" —
+    // same 0.9–1.1x band as the daily calorie bonus, so "on track" means one
+    // consistent thing app-wide.
+    var foodDays = {};
     var t = Formulas.targets(Store.state.profile);
     if (t) {
       var calByDay = {};
@@ -514,20 +529,23 @@
       });
       Object.keys(calByDay).forEach(function (date) {
         var cal = calByDay[date];
-        if (cal >= t.calories * 0.9 && cal <= t.calories * 1.1) days[date] = true;
+        if (cal >= t.calories * 0.9 && cal <= t.calories * 1.1) foodDays[date] = true;
       });
     }
-    var streak = 0;
-    var d = new Date(Store.todayISO() + 'T00:00:00');
-    while (true) {
-      var iso = d.toISOString().slice(0, 10);
-      if (days[iso]) { streak++; d.setDate(d.getDate() - 1); }
-      else break;
+    var foodStreak = consecutiveStreak(foodDays);
+
+    function block(emoji, streak, label) {
+      return '<div class="streak-block">' +
+        '<div class="streak-flame' + (streak > 0 ? ' lit' : '') + '">' + (streak > 0 ? '🔥' : emoji) + '</div>' +
+        '<div class="streak-num">' + streak + '</div>' +
+        '<div class="muted small">' + label + (streak === 1 ? '' : 's') + '</div></div>';
     }
-    var c = el('<div class="card streak"></div>');
-    c.innerHTML = '<div class="streak-flame' + (streak > 0 ? ' lit' : '') + '">' + (streak > 0 ? '🔥' : '💤') + '</div>' +
-      '<div><div class="streak-num">' + streak + ' day' + (streak === 1 ? '' : 's') + '</div>' +
-      '<div class="muted">' + (streak > 0 ? 'on-track streak — don’t break it 🔒' : 'work out or hit target to start a streak.') + '</div></div>';
+
+    var c = el('<div class="card"></div>');
+    c.innerHTML = '<div class="streak-split">' +
+      block('💪', workoutStreak, 'workout day') +
+      block('🍽️', foodStreak, 'food day') +
+      '</div>';
     return c;
   }
 
