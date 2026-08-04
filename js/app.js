@@ -565,7 +565,12 @@
   // consecutive days (ending today) where `days[iso]` is true
   function consecutiveStreak(days) {
     var streak = 0;
-    var d = new Date(Store.todayISO() + 'T00:00:00');
+    var todayISO = Store.todayISO();
+    var d = new Date(todayISO + 'T00:00:00');
+    // today not done yet isn't a broken streak — it's just not over yet.
+    // Start counting from yesterday so an in-progress streak doesn't drop
+    // to 0 first thing in the morning before you've had a chance to log.
+    if (!days[todayISO]) d.setDate(d.getDate() - 1);
     while (true) {
       var iso = d.toISOString().slice(0, 10);
       if (days[iso]) { streak++; d.setDate(d.getDate() - 1); }
@@ -971,7 +976,7 @@
       var checkinTitle = finished ? 'period ended' : (doneToday ? 'done today' : 'check in');
       var checkinClass = finished ? 'finished' : (doneToday ? 'done-today' : 'primary');
       var li = el('<li class="quest-item recurring">' +
-        '<span class="streak-badge">' + (streak > 0 ? '🔥' : '🎯') + '</span>' +
+        '<span class="streak-badge">' + (streak > 0 ? '🔥' : '🔁') + '</span>' +
         '<div class="quest-mid"><div class="quest-name">' + esc(q.name) + '</div>' +
         '<div class="quest-vibe"><span>' + freqLabel + (streak > 0 ? ' · ' + streak + streakUnit + ' streak' : '') + '</span>' +
         deadlineHTML + '</div></div>' +
@@ -1159,7 +1164,15 @@
     var insightsFold = el('<details class="fold" style="margin-top:14px"></details>');
     var chartHTML;
     if (loggedCount < 5) {
-      chartHTML = '<p class="muted small" style="margin-top:12px">log a few more vibe checks to unlock ✨</p>';
+      var recentVibes = Store.state.vibes.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);
+      var recentHTML = '';
+      if (recentVibes.length) {
+        recentHTML = '<ul class="mini-list" style="margin-top:10px">' + recentVibes.map(function (v) {
+          var vObj = VIBES.filter(function (x) { return x.level === v.level; })[0];
+          return '<li><span>' + prettyDate(v.date) + '</span><span>' + (vObj ? vObj.emoji + ' ' + vObj.label : v.level) + '</span></li>';
+        }).join('') + '</ul>';
+      }
+      chartHTML = recentHTML + '<p class="muted small" style="margin-top:10px">log a few more to unlock the weekly pattern ✨</p>';
     } else {
       chartHTML = '<div class="weekday-chart">' + weekday.map(function (avg, i) {
         var pct = avg ? Math.round((avg / 5) * 100) : 4;
