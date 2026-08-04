@@ -211,7 +211,12 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
 .tag.m { background: rgba(255,92,168,.18); color: var(--pink); }
 
 /* forms */
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* minmax(0, 1fr) not plain 1fr — a bare 1fr track still has an implicit
+   automatic minimum based on its content's min-content size, so a stubborn
+   native control (like the date input below) can force the track wider
+   than its fair share even with min-width:0 on the item itself. This is
+   the actual, standard fix for that class of grid-overflow bug. */
+.form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .form-grid label { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--muted); font-weight: 700; min-width: 0; overflow: hidden; }
 .form-grid .wide { grid-column: 1 / -1; min-width: 0; overflow: hidden; }
 .form-grid input, .form-grid select {

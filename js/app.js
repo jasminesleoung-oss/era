@@ -603,8 +603,8 @@
 
     var c = el('<div class="card"></div>');
     c.innerHTML = '<h3>streak check 🔥</h3><div class="streak-split">' +
-      block(workoutStreak, 'fit day') +
       block(foodStreak, 'fuel day') +
+      block(workoutStreak, 'fit day') +
       '</div>';
     return c;
   }
