@@ -189,14 +189,13 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
   text-align: center; gap: 2px; padding: 4px 8px;
 }
 .streak-block + .streak-block { border-left: 1px solid var(--line); }
-.streak-flame { font-size: 30px; transition: filter .2s ease; }
-.streak-flame.lit { filter: drop-shadow(0 0 10px rgba(255,159,28,.65)); animation: flame-flicker 2.2s ease-in-out infinite; }
-@keyframes flame-flicker {
-  0%, 100% { filter: drop-shadow(0 0 10px rgba(255,159,28,.65)); transform: scale(1); }
-  50% { filter: drop-shadow(0 0 16px rgba(255,159,28,.9)); transform: scale(1.06); }
+.streak-num { font-size: 22px; font-weight: 800; letter-spacing: -.5px; transition: color .2s ease; }
+.streak-num.lit { color: #ff9f1c; text-shadow: 0 0 12px rgba(255,159,28,.55); animation: streak-pulse 2.2s ease-in-out infinite; }
+@keyframes streak-pulse {
+  0%, 100% { text-shadow: 0 0 10px rgba(255,159,28,.5); }
+  50% { text-shadow: 0 0 16px rgba(255,159,28,.85); }
 }
-@media (prefers-reduced-motion: reduce) { .streak-flame.lit { animation: none; } }
-.streak-num { font-size: 22px; font-weight: 800; letter-spacing: -.5px; margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) { .streak-num.lit { animation: none; } }
 
 /* lists */
 .mini-list, .entry-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -213,19 +212,21 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
 
 /* forms */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-grid label { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--muted); font-weight: 700; min-width: 0; }
-.form-grid .wide { grid-column: 1 / -1; min-width: 0; }
+.form-grid label { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; color: var(--muted); font-weight: 700; min-width: 0; overflow: hidden; }
+.form-grid .wide { grid-column: 1 / -1; min-width: 0; overflow: hidden; }
 .form-grid input, .form-grid select {
   background: var(--surface-2); border: 1px solid var(--line); color: var(--text);
   padding: 12px 13px; border-radius: 12px; font-size: 15px; width: 100%; min-width: 0;
-  max-width: 100%; font-family: inherit;
+  max-width: 100%; font-family: inherit; box-sizing: border-box; display: block;
 }
 .form-grid input:focus, .form-grid select:focus { outline: none; border-color: var(--lime); box-shadow: 0 0 0 3px rgba(198,255,58,.14); }
 /* iOS Safari gives date/time inputs an internal minimum width that plain
    min-width:0 doesn't override, so a filled-in date can still force the
-   input past its grid track — this webkit-specific property is the actual
-   fix for that. */
-.form-grid input[type="date"] { min-width: 0; -webkit-min-logical-width: 0; }
+   input past its grid track. -webkit-min-logical-width targets the cause;
+   overflow:hidden (here and on the wrapping label/.wide above) is the
+   belt-and-suspenders fix — whatever WebKit tries to render past the box's
+   own edge just gets clipped instead of pushing the layout wider. */
+.form-grid input[type="date"] { min-width: 0; -webkit-min-logical-width: 0; overflow: hidden; }
 .form-grid button { margin-top: 4px; }
 
 /* recent foods */

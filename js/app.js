@@ -595,17 +595,16 @@
     }
     var foodStreak = consecutiveStreak(foodDays);
 
-    function block(emoji, streak, label) {
+    function block(streak, label) {
       return '<div class="streak-block">' +
-        '<div class="streak-flame' + (streak > 0 ? ' lit' : '') + '">' + (streak > 0 ? '🔥' : emoji) + '</div>' +
-        '<div class="streak-num">' + streak + '</div>' +
+        '<div class="streak-num' + (streak > 0 ? ' lit' : '') + '">' + streak + '</div>' +
         '<div class="muted small">' + label + (streak === 1 ? '' : 's') + '</div></div>';
     }
 
     var c = el('<div class="card"></div>');
     c.innerHTML = '<h3>streak check 🔥</h3><div class="streak-split">' +
-      block('💪', workoutStreak, 'workout day') +
-      block('🍽️', foodStreak, 'food day') +
+      block(workoutStreak, 'fit day') +
+      block(foodStreak, 'fuel day') +
       '</div>';
     return c;
   }
@@ -738,7 +737,8 @@
     else if (days === 1) { label = 'due tomorrow ⏰'; cls = 'urgent'; }
     else if (days <= 3) { label = days + 'd left — crunch time ⏰'; cls = 'soon'; }
     else {
-      label = 'due ' + new Date(deadline + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      label = 'due ' + new Date(deadline + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+        ' · ' + days + 'd left';
       cls = 'ok';
     }
     return '<span class="deadline-tag ' + cls + '">' + label + '</span>';
