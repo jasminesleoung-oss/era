@@ -938,15 +938,11 @@
 
     // --- lists ---
     function oneOffItem(q) {
-      var vibeObj = Formulas.ANNOYANCE.filter(function (a) { return a.key === q.annoyance; })[0];
-      var vibe = vibeObj ? vibeObj.label : (q.points ? '' : '🔔 reminder');
-      var type = q.type === 'side' ? 'side' : 'health';
       var pillHTML = q.points > 0 ? '<span class="pill">✦ ' + q.points + '</span>' : '<span class="pill reminder">🔔</span>';
       var li = el('<li class="quest-item' + (q.done ? ' done' : '') + '">' +
         '<button class="quest-check" title="mark done">✓</button>' +
         '<div class="quest-mid"><div class="quest-name">' + esc(q.name) + '</div>' +
-        '<div class="quest-vibe"><span class="type-tag ' + type + '">' + type + '</span>' +
-        '<span>' + esc(vibe) + '</span>' + (q.done ? '' : deadlineTag(q.deadline)) + '</div></div>' +
+        '<div class="quest-vibe">' + (q.done ? '' : deadlineTag(q.deadline)) + '</div></div>' +
         '<div class="quest-actions">' + pillHTML +
         '<button class="icon-btn" title="edit">✏️</button>' +
         '<button class="icon-btn del" title="delete">✕</button></div></li>');
@@ -962,7 +958,6 @@
     }
 
     function recurringItem(q) {
-      var type = q.type === 'side' ? 'side' : 'health';
       var freqLabel = q.frequency === 'daily' ? 'daily' : q.frequency + '×/week';
       var streak = Store.questStreak(q);
       var streakUnit = q.frequency === 'daily' ? 'd' : 'wk';
@@ -977,8 +972,7 @@
       var li = el('<li class="quest-item recurring">' +
         '<span class="streak-badge">' + (streak > 0 ? '🔥' : '🎯') + '</span>' +
         '<div class="quest-mid"><div class="quest-name">' + esc(q.name) + '</div>' +
-        '<div class="quest-vibe"><span class="type-tag ' + type + '">' + type + '</span>' +
-        '<span>' + freqLabel + (streak > 0 ? ' · ' + streak + streakUnit + ' streak' : '') + '</span>' +
+        '<div class="quest-vibe"><span>' + freqLabel + (streak > 0 ? ' · ' + streak + streakUnit + ' streak' : '') + '</span>' +
         deadlineHTML + '</div></div>' +
         '<div class="quest-actions"><button class="checkin-btn ' + checkinClass + '" title="' + checkinTitle + '"' +
         (finished || doneToday ? ' disabled' : '') + '>✓</button>' +
