@@ -25,6 +25,17 @@
     clearTimeout(toast._t);
     toast._t = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
   }
+  // truly random (not seeded) so repeat logs in one sitting still feel varied
+  function pickRandom(variants) {
+    return variants[Math.floor(Math.random() * variants.length)];
+  }
+  var FOOD_LOGGED_MSGS = ['fed & thriving 😌', 'slay, that\'s logged 💅', 'nutrition: handled ✨', 'logged it, no cap'];
+  var WORKOUT_LOGGED_MSGS = ['logged it, that girl behavior 💪', 'workout slayed 💪', 'that\'s a W, logged 🔥', 'movement secured 💪'];
+  var QUEST_DONE_MSGS = ['handled it 💅', 'slay, quest complete 💅', 'that\'s done, iconic ✨', 'checked off, let\'s go 🔥'];
+  var QUEST_DONE_FREE_MSGS = ['done ✓', 'handled ✨', 'slay, done ✓'];
+  var CHECKIN_MSGS = ['checked in ✨', 'slay, checked in ✨', 'showed up, logged ✨'];
+  var VIBE_LOGGED_MSGS = ['logged ✨', 'mood: logged 💫', 'slay, noted ✨'];
+  var NUM_LOGGED_MSGS = ['logged ✨', 'slay, numbers updated 💪', 'pr energy, logged ✨'];
   function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
   // ---- in-progress form drafts (survives the PWA getting backgrounded and
@@ -286,7 +297,7 @@
       } else {
         data.date = Store.todayISO();
         Store.addMeal(data);
-        toast('fed & thriving 😌');
+        toast(pickRandom(FOOD_LOGGED_MSGS));
       }
       onDone();
     });
@@ -310,7 +321,7 @@
       } else {
         data.date = Store.todayISO();
         var pts = Store.addWorkout(data);
-        toast('logged it, that girl behavior 💪 +' + pts + ' pts');
+        toast(pickRandom(WORKOUT_LOGGED_MSGS) + ' +' + pts + ' pts');
       }
       onDone();
     });
@@ -886,7 +897,7 @@
           var text = input.value.trim();
           if (!text) return;
           Store.logExerciseEntry(ex.id, text);
-          toast('logged ✨');
+          toast(pickRandom(NUM_LOGGED_MSGS));
           render();
         });
         var histUl = li.querySelector('.exercise-history .entry-list');
@@ -1148,7 +1159,7 @@
         '<button class="icon-btn del" title="delete">✕</button></div></li>');
       li.querySelector('.quest-mid').addEventListener('click', function () {
         var nowDone = Store.toggleQuest(q.id);
-        var doneMsg = q.points > 0 ? 'handled it 💅 +' + q.points + ' pts' : 'done ✓';
+        var doneMsg = q.points > 0 ? pickRandom(QUEST_DONE_MSGS) + ' +' + q.points + ' pts' : pickRandom(QUEST_DONE_FREE_MSGS);
         toast(nowDone ? doneMsg : 'back on the list 🫡');
         render();
       });
@@ -1182,7 +1193,7 @@
       if (checkinBtn) {
         checkinBtn.addEventListener('click', function () {
           var pts = Store.checkInQuest(q.id);
-          toast(pts > 0 ? ('checked in ✨ +' + pts + ' pts') : 'checked in ✨');
+          toast(pts > 0 ? (pickRandom(CHECKIN_MSGS) + ' +' + pts + ' pts') : pickRandom(CHECKIN_MSGS));
           render();
         });
       }
@@ -1345,8 +1356,8 @@
         var alreadyLoggedToday = Store.vibeToday() !== null;
         var bonus = Store.logVibe(v.level);
         if (alreadyLoggedToday) toast('updated ✨');
-        else if (bonus > 0) toast('logged ✨ +' + bonus + ' pts — 7 day streak 🔥');
-        else toast('logged ✨');
+        else if (bonus > 0) toast(pickRandom(VIBE_LOGGED_MSGS) + ' +' + bonus + ' pts — 7 day streak 🔥');
+        else toast(pickRandom(VIBE_LOGGED_MSGS));
         render();
       });
       vibeGrid.appendChild(b);
