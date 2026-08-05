@@ -657,12 +657,15 @@
       var proteinOk = protein >= t.protein * 0.8;
       var fatOk = fat <= t.fat * 1.3 && fat >= t.fat * 0.6;
       if (proteinOk && fatOk) {
-        parts.push(pickVariant(seed + 'm', ['protein and fat both landed in a good place yesterday.', 'macros were solid across the board yesterday.']));
+        parts.push(pickVariant(seed + 'm', ['macros were clean yesterday. no notes ✨', 'protein and fat both showed up yesterday. no notes.']));
       } else {
         var notes = [];
-        if (!proteinOk) notes.push('protein came up short (' + Math.round(protein) + 'g of ' + t.protein + 'g)');
-        if (!fatOk) notes.push(fat > t.fat * 1.3 ? 'fat ran a bit high (' + Math.round(fat) + 'g vs ' + t.fat + 'g)' : 'fat was pretty low (' + Math.round(fat) + 'g vs ' + t.fat + 'g)');
-        parts.push(notes.join(' and ') + ' yesterday — worth a glance today, no pressure.');
+        if (!proteinOk) notes.push('protein was low');
+        if (!fatOk) notes.push(fat > t.fat * 1.3 ? 'fat ran high' : 'fat ran low');
+        parts.push(pickVariant(seed + 'm', [
+          notes.join(', ') + ' yesterday. new day, new plate 🍽️',
+          notes.join(', ') + ' yesterday — no biggie, today\'s a reset.'
+        ]));
       }
     }
     if (workouts.length) {
@@ -670,13 +673,13 @@
       var isMonday = new Date(yesterday + 'T00:00:00').getDay() === 1;
       if (isMonday) {
         parts.push(pickVariant(seed + 'w', [
-          'but that ' + names + ' session though? showing up on a monday is genuinely elite behavior 🔥',
-          'monday ' + names + ', no less — that’s the hardest day to show up for and you did it anyway 💪'
+          'monday ' + names + ' though?? absolute legend behavior 🔥',
+          'showed up monday for ' + names + '. that\'s the flex 💪'
         ]));
       } else {
         parts.push(pickVariant(seed + 'w', [
-          'and that ' + names + ' session was real work 💪 — that counts for a lot.',
-          names + ' logged and done — that’s a win, full stop.'
+          names + ' — logged it, crushed it, done 💪',
+          'that ' + names + ' was real work. respect.'
         ]));
       }
     }
@@ -696,8 +699,8 @@
 
     if (totalEverLogged < 3) {
       return pickVariant(seed, [
-        'still building your data — the more you log, the sharper these get. today, just keep showing up ✨',
-        'not enough history yet to read the tea leaves ☕ — a few more days of logging and there’ll be something real to tell you.'
+        'still building your data — keep showing up ✨',
+        'lowkey no data yet ☕ log a few more days, then we talk.'
       ]);
     }
 
@@ -709,8 +712,8 @@
     // blind cheerleading
     if (streaks.fit >= 6) {
       return pickVariant(seed, [
-        streaks.fit + '-day fit streak and no rest day in sight — that’s dedication, but recovery is part of the plan too. today might be the day 🧘',
-        streaks.fit + ' days straight of movement, no cap — but your body earns a rest day just as much as a workout. consider it for today.'
+        streaks.fit + ' days straight, zero rest days. rest is part of the plan too 🧘',
+        streaks.fit + ' days no cap — but even legends need a rest day.'
       ]);
     }
 
@@ -719,8 +722,8 @@
     var proteinMisses = proteinDays.filter(function (d) { return !d.proteinHit; });
     if (proteinDays.length >= 3 && proteinMisses.length / proteinDays.length > 0.6) {
       return pickVariant(seed, [
-        'protein’s been ghosting you the last few days — it happens. today, try leading with a protein source instead of an afterthought.',
-        'noticing protein keeps coming up short lately — no big deal, just an easy lever to pull today if you want one.'
+        'protein\'s been ghosting lately. lead with it today.',
+        'protein keeps coming up short — easy lever to pull today if you want one.'
       ]);
     }
 
@@ -732,8 +735,8 @@
       var avgNW = sum(withoutWorkout, function (d) { return d.vibeLevel; }) / withoutWorkout.length;
       if (avgW - avgNW >= 0.5) {
         return pickVariant(seed, [
-          'real talk: your vibe consistently runs higher on days you move. not saying you have to — just saying your own data said it, not me 👀',
-          'the pattern’s pretty clear — workout days are your better-vibe days too. filing that under main character energy tips.'
+          'your data doesn\'t lie: workout days = better vibe days 👀',
+          'movement days hit different for your mood. just saying.'
         ]);
       }
     }
@@ -743,13 +746,13 @@
     if (bestStreak >= 3) {
       if (streaks.fit >= streaks.fuel) {
         return pickVariant(seed, [
-          streaks.fit + '-day fit streak, certified iconic behavior 🔥 keep that energy today.',
-          streaks.fit + ' days moving in a row — you’re not even thinking about it anymore, you’re just built different now.'
+          streaks.fit + '-day fit streak. certified iconic 🔥',
+          streaks.fit + ' days moving straight. you\'re just built different now.'
         ]);
       }
       return pickVariant(seed, [
-        streaks.fuel + '-day fuel streak and it’s not even a debate anymore — this is just who you are now. keep it rolling.',
-        streaks.fuel + ' days of hitting your fuel target in a row — that’s the kind of consistency that actually adds up, no notes.'
+        streaks.fuel + '-day fuel streak, no debate. keep it rolling.',
+        streaks.fuel + ' days on target straight. that\'s just who you are now.'
       ]);
     }
 
@@ -759,8 +762,8 @@
     var calHits = calDays.filter(function (d) { return d.calHit; });
     if (calDays.length >= 4 && calHits.length / calDays.length >= 0.8) {
       return pickVariant(seed, [
-        'you’ve hit your target more days than not this week — that’s the real win, not any one “perfect” day.',
-        'your calorie numbers have been solid lately, streak or no streak — consistency’s doing the work here.'
+        'more hits than misses this week. that\'s the real win 🎯',
+        'calories have been solid lately — consistency\'s doing the work.'
       ]);
     }
 
@@ -771,8 +774,8 @@
     if (micro) return micro;
 
     return pickVariant(seed, [
-      'no huge pattern jumping out right now — just keep logging, the insights get sharper with more data. show up however you can today ✨',
-      'nothing dramatic to report, which is honestly its own kind of good. just keep doing you today 💛'
+      'nothing wild to report — keep logging, insights get sharper ✨',
+      'quiet week, data-wise. still a good week 💛'
     ]);
   }
 
