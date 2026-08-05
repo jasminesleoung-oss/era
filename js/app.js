@@ -395,6 +395,9 @@
       macCard.appendChild(foodLogFold);
     }
 
+    var proteinFold = proteinHistoryFold(t);
+    if (proteinFold) macCard.appendChild(proteinFold);
+
     var mFormWrap = el('<div id="foodFormWrap" style="display:none;margin-top:14px"></div>');
     mFormWrap.innerHTML = foodFormHTML();
     macCard.appendChild(mFormWrap);
@@ -576,6 +579,42 @@
     return c;
   }
 
+  // protein-over-time bar chart — grams as the data label, % of goal as the
+  // bar height (so a target change doesn't make old bars misleading), with
+  // a dashed tick per bar marking the 100% goal line. Only past logged days,
+  // today's still in progress so it's excluded same as recentDayStats.
+  function proteinHistoryFold(t) {
+    var days = recentDayStats(14).filter(function (d) { return d.hasFood; });
+    if (!days.length) return null;
+    days = days.slice().reverse(); // oldest first, left to right
+    var barAreaHeight = 120;
+    var maxPct = Math.max.apply(null, days.map(function (d) { return d.proteinPct || 0; }));
+    maxPct = Math.max(140, maxPct + 15);
+    var goalBottom = Math.round((100 / maxPct) * barAreaHeight);
+
+    var cols = days.map(function (d) {
+      var pct = d.proteinPct || 0;
+      var h = Math.max(3, Math.round((pct / maxPct) * barAreaHeight));
+      var dt = new Date(d.date + 'T00:00:00');
+      var label = (dt.getMonth() + 1) + '/' + dt.getDate();
+      var cls = d.proteinHit ? 'hit' : 'miss';
+      return '<div class="protein-col">' +
+        '<div class="protein-bar-label">' + Math.round(d.protein) + 'g</div>' +
+        '<div class="protein-bar-track" style="height:' + barAreaHeight + 'px">' +
+          '<div class="protein-goal-tick" style="bottom:' + goalBottom + 'px"></div>' +
+          '<div class="protein-bar ' + cls + '" style="height:' + h + 'px" title="' + pct + '% of goal"></div>' +
+        '</div>' +
+        '<div class="protein-date">' + label + '</div></div>';
+    }).join('');
+
+    var fold = el('<details class="fold" style="margin-top:14px"></details>');
+    fold.innerHTML = '<summary>protein over time 📈</summary><div class="fold-body">' +
+      '<div class="protein-chart-wrap"><div class="protein-chart">' + cols + '</div></div>' +
+      '<p class="muted small" style="margin-top:10px">dashed line = your ' + t.protein + 'g goal · last ' +
+      days.length + ' logged day' + (days.length === 1 ? '' : 's') + '</p></div>';
+    return fold;
+  }
+
   // consecutive days (ending today) where `days[iso]` is true
   function consecutiveStreak(days) {
     var streak = 0;
@@ -630,6 +669,8 @@
         hasFood: dayMeals.length > 0,
         calHit: !!(t && dayMeals.length && cal >= t.calories * 0.9 && cal <= t.calories * 1.1),
         proteinHit: !!(t && dayMeals.length && protein >= t.protein * 0.9),
+        protein: protein,
+        proteinPct: (t && dayMeals.length) ? Math.round((protein / t.protein) * 100) : null,
         hasWorkout: !!(workoutsByDay[iso] && workoutsByDay[iso].length),
         vibeLevel: vibeByDay[iso] || null
       });
