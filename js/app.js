@@ -185,9 +185,9 @@
       '<form id="mForm" class="form-grid">' +
       '<label>portion (g)<input name="grams" type="number" min="1" placeholder="e.g. 200"></label>' +
       '<label>calories<input name="calories" type="number" min="0" required></label>' +
-      '<label>protein (g)<input name="protein" type="number" min="0" value="0"></label>' +
-      '<label>carbs (g)<input name="carbs" type="number" min="0" value="0"></label>' +
-      '<label>fat (g)<input name="fat" type="number" min="0" value="0"></label>' +
+      '<label>protein (g)<input name="protein" type="number" min="0" placeholder="0"></label>' +
+      '<label>carbs (g)<input name="carbs" type="number" min="0" placeholder="0"></label>' +
+      '<label>fat (g)<input name="fat" type="number" min="0" placeholder="0"></label>' +
       '<button class="btn primary wide" type="submit">log food</button>' +
       '</form>';
   }
@@ -530,13 +530,17 @@
 
     // ---- draft persistence: keep whatever's typed if the app gets
     // backgrounded and reloaded mid-entry, instead of silently clearing it ----
-    function wireDraft(kind, formWrap, formSelector, fieldNames, editingIdGetter, editingIdSetter) {
-      var form = formWrap.querySelector(formSelector);
+    function wireDraft(kind, formWrap, fieldNames, editingIdGetter, editingIdSetter) {
       // scoped to formWrap (not the <form>) and by plain attribute selector,
       // not form[name] — some fields (like the food search box) live outside
       // the <form> tag itself, linked via form="", and that cross-element
       // association doesn't reliably resolve while the tree is still
       // detached (i.e. exactly when this runs, before render() inserts it).
+      // The 'input' listener is on formWrap for the same reason: the search
+      // box isn't a DOM descendant of <form> (only form-attribute-linked to
+      // it), so it never bubbles an input event up through the form itself —
+      // typing a food name and switching apps before touching another field
+      // saved nothing at all. Listening on the wrapper catches every field.
       function fieldEl(n) { return formWrap.querySelector('[name="' + n + '"]'); }
       function save() {
         var fields = {};
@@ -547,7 +551,7 @@
           fields: fields
         });
       }
-      form.addEventListener('input', save);
+      formWrap.addEventListener('input', save);
       var draft = loadFormDraft(kind);
       if (draft) {
         editingIdSetter(draft.editingId || null);
@@ -556,9 +560,9 @@
         formWrap.style.display = 'block';
       }
     }
-    wireDraft('workout', wFormWrap, '#wForm', ['name', 'type', 'durationMin', 'intensity', 'notes'],
+    wireDraft('workout', wFormWrap, ['name', 'type', 'durationMin', 'intensity', 'notes'],
       function () { return editingWorkoutId; }, function (v) { editingWorkoutId = v; });
-    wireDraft('food', mFormWrap, '#mForm', ['name', 'grams', 'calories', 'protein', 'carbs', 'fat'],
+    wireDraft('food', mFormWrap, ['name', 'grams', 'calories', 'protein', 'carbs', 'fat'],
       function () { return editingMealId; }, function (v) { editingMealId = v; });
     wireWorkoutForm(wFormWrap, function () { clearFormDraft('workout'); render(); });
     wireFoodForm(mFormWrap, function () { clearFormDraft('food'); render(); });
@@ -642,6 +646,9 @@
   function fuelFitStreaks() {
     var workoutDays = {};
     Store.state.workouts.forEach(function (w) { workoutDays[w.date] = true; });
+    // a marked rest day is part of the plan, not a lapse — it keeps the fit
+    // streak alive instead of breaking it.
+    Store.state.restDays.forEach(function (d) { workoutDays[d] = true; });
     var foodDays = {};
     var t = Formulas.targets(Store.state.profile);
     if (t) {
