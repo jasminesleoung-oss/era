@@ -253,16 +253,46 @@
       resultsEl.innerHTML = '';
     }
 
+    // your own past log entries that match the query — already have the
+    // exact macros you logged before (not a per-100g value to scale), and
+    // don't need a network round-trip, so they render first and instantly.
+    function historicalMatches(q) {
+      var query = q.trim().toLowerCase();
+      if (!query) return [];
+      var seen = {}, out = [];
+      Store.state.meals.slice().reverse().forEach(function (m) {
+        var name = (m.name || '').trim();
+        if (!name || name.toLowerCase().indexOf(query) === -1) return;
+        var key = name.toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        out.push(m);
+      });
+      return out.slice(0, 6);
+    }
+
     function runSearch() {
       var q = searchInput.value.trim();
       if (!q) return;
-      resultsEl.innerHTML = '<li class="searching">searching the internet… 🌐</li>';
+      var historical = historicalMatches(q);
+      var historicalHTML = historical.length
+        ? '<li class="results-label">from your log ⏱️</li>' + historical.map(function (m) {
+            return '<li class="hist-result"><span><span class="result-name">' + esc(m.name) + '</span></span>' +
+              '<span class="result-macros">' + num(m.calories) + ' kcal · ' + num(m.protein) + 'g P</span></li>';
+          }).join('')
+        : '';
+      resultsEl.innerHTML = historicalHTML + '<li class="searching" id="usdaStatus">searching the internet… 🌐</li>';
+      [].forEach.call(resultsEl.querySelectorAll('.hist-result'), function (li, i) {
+        li.addEventListener('click', function () { fillFromMeal(historical[i]); });
+      });
+
       Foods.search(q).then(function (list) {
+        var statusEl = resultsEl.querySelector('#usdaStatus');
         if (!list.length) {
-          resultsEl.innerHTML = '<li class="searching">no matches — type it in manually below. 👇</li>';
+          if (statusEl) statusEl.textContent = historical.length ? 'no more matches from the database — the ones above still work. 👆' : 'no matches — type it in manually below. 👇';
           return;
         }
-        resultsEl.innerHTML = '';
+        if (statusEl) statusEl.remove();
         list.forEach(function (f) {
           var li = el('<li><span><span class="result-name">' + esc(f.name) + '</span>' +
             (f.brand ? ' <span class="result-brand">· ' + esc(f.brand) + '</span>' : '') +
@@ -272,7 +302,8 @@
           resultsEl.appendChild(li);
         });
       }).catch(function () {
-        resultsEl.innerHTML = '<li class="searching">couldn’t reach the food database — check your connection or type it in manually. 🔌</li>';
+        var statusEl = resultsEl.querySelector('#usdaStatus');
+        if (statusEl) statusEl.textContent = 'couldn’t reach the food database — check your connection or type it in manually. 🔌';
       });
     }
     card.querySelector('#foodSearchBtn').addEventListener('click', runSearch);
