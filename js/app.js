@@ -395,8 +395,8 @@
       macCard.appendChild(foodLogFold);
     }
 
-    var proteinFold = proteinHistoryFold(t);
-    if (proteinFold) macCard.appendChild(proteinFold);
+    macCard.appendChild(el('<button class="link-btn" id="openMacroHistory">📊 see your macros over time</button>'));
+    macCard.querySelector('#openMacroHistory').addEventListener('click', function () { setView('macroHistory'); });
 
     var mFormWrap = el('<div id="foodFormWrap" style="display:none;margin-top:14px"></div>');
     mFormWrap.innerHTML = foodFormHTML();
@@ -579,40 +579,47 @@
     return c;
   }
 
-  // protein-over-time bar chart — grams as the data label, % of goal as the
-  // bar height (so a target change doesn't make old bars misleading), with
-  // a dashed tick per bar marking the 100% goal line. Only past logged days,
-  // today's still in progress so it's excluded same as recentDayStats.
-  function proteinHistoryFold(t) {
-    var days = recentDayStats(14).filter(function (d) { return d.hasFood; });
-    if (!days.length) return null;
-    days = days.slice().reverse(); // oldest first, left to right
+  // macro-over-time bar chart (calories/protein/carbs/fat, pick one) —
+  // the data label is the raw grams/kcal, but bar height is % of goal (so
+  // a target change later doesn't make old bars misleading), with a dashed
+  // tick per bar marking the 100% goal line. Lives on its own page — see
+  // views.macroHistory.
+  var MACRO_METRICS = [
+    { key: 'calories', label: 'calories', unit: 'kcal', hit: function (d) { return d.calHit; } },
+    { key: 'protein', label: 'protein', unit: 'g', hit: function (d) { return d.proteinHit; } },
+    { key: 'carbs', label: 'carbs', unit: 'g', hit: function (d) { return d.carbsHit; } },
+    { key: 'fat', label: 'fat', unit: 'g', hit: function (d) { return d.fatHit; } }
+  ];
+
+  function macroChartEl(days, metric, target) {
     var barAreaHeight = 120;
-    var maxPct = Math.max.apply(null, days.map(function (d) { return d.proteinPct || 0; }));
-    maxPct = Math.max(140, maxPct + 15);
+    var pcts = days.map(function (d) { return d[metric.key + 'Pct'] || 0; });
+    var maxPct = Math.max(140, Math.max.apply(null, pcts) + 15);
     var goalBottom = Math.round((100 / maxPct) * barAreaHeight);
 
     var cols = days.map(function (d) {
-      var pct = d.proteinPct || 0;
+      var pct = d[metric.key + 'Pct'] || 0;
+      var val = d[metric.key];
       var h = Math.max(3, Math.round((pct / maxPct) * barAreaHeight));
       var dt = new Date(d.date + 'T00:00:00');
       var label = (dt.getMonth() + 1) + '/' + dt.getDate();
-      var cls = d.proteinHit ? 'hit' : 'miss';
-      return '<div class="protein-col">' +
-        '<div class="protein-bar-label">' + Math.round(d.protein) + 'g</div>' +
-        '<div class="protein-bar-track" style="height:' + barAreaHeight + 'px">' +
-          '<div class="protein-goal-tick" style="bottom:' + goalBottom + 'px"></div>' +
-          '<div class="protein-bar ' + cls + '" style="height:' + h + 'px" title="' + pct + '% of goal"></div>' +
+      var cls = metric.hit(d) ? 'hit' : 'miss';
+      var barLabel = Math.round(val) + (metric.unit === 'kcal' ? '' : metric.unit);
+      return '<div class="macro-col">' +
+        '<div class="macro-bar-label">' + barLabel + '</div>' +
+        '<div class="macro-bar-track" style="height:' + barAreaHeight + 'px">' +
+          '<div class="macro-goal-tick" style="bottom:' + goalBottom + 'px"></div>' +
+          '<div class="macro-bar ' + cls + '" style="height:' + h + 'px" title="' + pct + '% of goal"></div>' +
         '</div>' +
-        '<div class="protein-date">' + label + '</div></div>';
+        '<div class="macro-date">' + label + '</div></div>';
     }).join('');
 
-    var fold = el('<details class="fold" style="margin-top:14px"></details>');
-    fold.innerHTML = '<summary>protein over time 📈</summary><div class="fold-body">' +
-      '<div class="protein-chart-wrap"><div class="protein-chart">' + cols + '</div></div>' +
-      '<p class="muted small" style="margin-top:10px">dashed line = your ' + t.protein + 'g goal · last ' +
-      days.length + ' logged day' + (days.length === 1 ? '' : 's') + '</p></div>';
-    return fold;
+    var host = el('<div></div>');
+    host.innerHTML = '<div class="macro-chart-wrap"><div class="macro-chart">' + cols + '</div></div>' +
+      '<p class="muted small" style="margin-top:10px">dashed line = your ' + metric.label + ' goal (' +
+      target + (metric.unit === 'kcal' ? ' kcal' : metric.unit) + ') · last ' +
+      days.length + ' logged day' + (days.length === 1 ? '' : 's') + '</p>';
+    return host;
   }
 
   // consecutive days (ending today) where `days[iso]` is true
@@ -662,15 +669,26 @@
     for (var i = 0; i < n; i++) {
       var iso = d.toISOString().slice(0, 10);
       var dayMeals = mealsByDay[iso] || [];
+      var hasFood = dayMeals.length > 0;
       var cal = sum(dayMeals, function (m) { return num(m.calories); });
       var protein = sum(dayMeals, function (m) { return num(m.protein); });
+      var carbs = sum(dayMeals, function (m) { return num(m.carbs); });
+      var fat = sum(dayMeals, function (m) { return num(m.fat); });
       out.push({
         date: iso,
-        hasFood: dayMeals.length > 0,
-        calHit: !!(t && dayMeals.length && cal >= t.calories * 0.9 && cal <= t.calories * 1.1),
-        proteinHit: !!(t && dayMeals.length && protein >= t.protein * 0.9),
+        hasFood: hasFood,
+        calories: cal,
+        caloriesPct: (t && hasFood) ? Math.round((cal / t.calories) * 100) : null,
+        calHit: !!(t && hasFood && cal >= t.calories * 0.9 && cal <= t.calories * 1.1),
         protein: protein,
-        proteinPct: (t && dayMeals.length) ? Math.round((protein / t.protein) * 100) : null,
+        proteinPct: (t && hasFood) ? Math.round((protein / t.protein) * 100) : null,
+        proteinHit: !!(t && hasFood && protein >= t.protein * 0.9),
+        carbs: carbs,
+        carbsPct: (t && hasFood) ? Math.round((carbs / t.carbs) * 100) : null,
+        carbsHit: !!(t && hasFood && carbs >= t.carbs * 0.8 && carbs <= t.carbs * 1.2),
+        fat: fat,
+        fatPct: (t && hasFood) ? Math.round((fat / t.fat) * 100) : null,
+        fatHit: !!(t && hasFood && fat >= t.fat * 0.75 && fat <= t.fat * 1.25),
         hasWorkout: !!(workoutsByDay[iso] && workoutsByDay[iso].length),
         vibeLevel: vibeByDay[iso] || null
       });
@@ -976,6 +994,57 @@
     });
     wrap.appendChild(addCard);
 
+    return wrap;
+  };
+
+  // ==== MACRO HISTORY (reached via a link on the fuel check card, not a
+  // tab — same pattern as the exercise tracker) ==========================
+  views.macroHistory = function () {
+    var wrap = el('<section class="stack"></section>');
+    wrap.appendChild(el('<button class="link-btn back-link" id="macroBack">← back to home</button>'));
+    wrap.appendChild(el('<div class="hello"><h1>macros over time 📊</h1>' +
+      '<p class="muted">what you’ve actually been eating 🍽️</p></div>'));
+    wrap.querySelector('#macroBack').addEventListener('click', function () { setView('dashboard'); });
+
+    var t = Formulas.targets(Store.state.profile);
+    var card = el('<div class="card"></div>');
+    if (!t) {
+      card.appendChild(el('<p class="muted">set up your profile in settings to see targets.</p>'));
+      wrap.appendChild(card);
+      return wrap;
+    }
+
+    var activeKey = 'protein';
+    var segEl = el('<div class="seg">' + MACRO_METRICS.map(function (m) {
+      return '<button type="button" class="seg-btn' + (m.key === activeKey ? ' active' : '') + '" data-key="' + m.key + '">' + m.label + '</button>';
+    }).join('') + '</div>');
+    card.appendChild(segEl);
+    var chartHost = el('<div style="margin-top:4px"></div>');
+    card.appendChild(chartHost);
+    wrap.appendChild(card);
+
+    function renderChart() {
+      chartHost.innerHTML = '';
+      var metric = MACRO_METRICS.filter(function (m) { return m.key === activeKey; })[0];
+      var days = recentDayStats(30).filter(function (d) { return d.hasFood; });
+      if (!days.length) {
+        chartHost.appendChild(el('<p class="muted" style="margin-top:14px">log some food to start seeing trends here 🍽️</p>'));
+        return;
+      }
+      days = days.slice().reverse(); // oldest first, left to right
+      chartHost.appendChild(macroChartEl(days, metric, t[metric.key]));
+    }
+
+    segEl.querySelectorAll('.seg-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        segEl.querySelectorAll('.seg-btn').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        activeKey = btn.dataset.key;
+        renderChart();
+      });
+    });
+
+    renderChart();
     return wrap;
   };
 

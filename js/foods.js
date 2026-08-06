@@ -9,6 +9,14 @@
 var Foods = (function () {
   var ENDPOINT = 'https://api.nal.usda.gov/fdc/v1/foods/search';
   var DATA_TYPES = 'Foundation,SR Legacy,Survey (FNDDS),Branded';
+  // USDA's relevance ranking puts an exact-name match first regardless of
+  // dataType, so a plain search like "chicken breast" comes back as a wall
+  // of random Branded packaged products (10 different grocery brands all
+  // literally named "CHICKEN BREAST") before a single plain/generic entry
+  // shows up. Generic (Foundation/SR Legacy/Survey) results are what a
+  // home-cooked-meal search actually wants, so they're bumped to the top;
+  // Branded stays available underneath for actual packaged/branded foods.
+  var GENERIC_TYPES = { 'Foundation': true, 'SR Legacy': true, 'Survey (FNDDS)': true };
 
   function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
@@ -49,7 +57,7 @@ var Foods = (function () {
       '?api_key=' + encodeURIComponent(key) +
       '&query=' + encodeURIComponent(query) +
       '&dataType=' + encodeURIComponent(DATA_TYPES) +
-      '&pageSize=20';
+      '&pageSize=30';
 
     return fetchWithRetry(url, 3)
       .then(function (data) {
@@ -62,6 +70,7 @@ var Foods = (function () {
           out.push({
             name: f.description,
             brand: f.brandOwner || f.brandName || '',
+            generic: !!GENERIC_TYPES[f.dataType],
             per100: {
               cal: Math.round(cal),
               protein: Math.round(nutrientVal(nutrients, 'Protein')),
@@ -70,6 +79,11 @@ var Foods = (function () {
             }
           });
         });
+        // generic (plain/home-cooked) foods first, branded packaged
+        // products after — see GENERIC_TYPES comment above. Array#sort is
+        // stable in every engine this app runs on, so USDA's own relevance
+        // order survives within each group.
+        out.sort(function (a, b) { return (b.generic ? 1 : 0) - (a.generic ? 1 : 0); });
         // de-dupe by name+brand, cap at 10
         var seen = {}, deduped = [];
         out.forEach(function (f) {

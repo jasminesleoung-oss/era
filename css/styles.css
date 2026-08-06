@@ -421,16 +421,16 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
 .wd-bar { width: 100%; background: linear-gradient(180deg, var(--lime-bright), var(--lime-dim)); border-radius: 6px 6px 2px 2px; min-height: 4px; transition: height .3s ease; }
 .wd-label { font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; }
 
-/* protein-over-time chart (fuel check fold) */
-.protein-chart-wrap { overflow-x: auto; margin-top: 4px; padding-bottom: 2px; }
-.protein-chart { display: flex; gap: 10px; min-width: max-content; }
-.protein-col { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 34px; flex: none; }
-.protein-bar-label { font-size: 10px; font-weight: 800; color: var(--text); white-space: nowrap; }
-.protein-bar-track { position: relative; width: 100%; display: flex; align-items: flex-end; }
-.protein-goal-tick { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(174,191,153,.55); }
-.protein-bar { width: 100%; border-radius: 5px 5px 2px 2px; min-height: 3px; position: relative; z-index: 1; transition: height .3s ease; background: linear-gradient(180deg, var(--lime-bright), var(--lime-dim)); }
-.protein-bar.miss { background: var(--surface-2); border: 1px solid var(--line); }
-.protein-date { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
+/* macro-over-time chart (its own page — views.macroHistory) */
+.macro-chart-wrap { overflow-x: auto; margin-top: 4px; padding-bottom: 2px; }
+.macro-chart { display: flex; gap: 10px; min-width: max-content; }
+.macro-col { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 38px; flex: none; }
+.macro-bar-label { font-size: 10px; font-weight: 800; color: var(--text); white-space: nowrap; }
+.macro-bar-track { position: relative; width: 100%; display: flex; align-items: flex-end; }
+.macro-goal-tick { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(174,191,153,.55); }
+.macro-bar { width: 100%; border-radius: 5px 5px 2px 2px; min-height: 3px; position: relative; z-index: 1; transition: height .3s ease; background: linear-gradient(180deg, var(--lime-bright), var(--lime-dim)); }
+.macro-bar.miss { background: var(--surface-2); border: 1px solid var(--line); }
+.macro-date { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
 
 /* weekly lineup checklist */
 .lineup-list { margin-top: 6px; }
