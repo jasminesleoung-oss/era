@@ -427,11 +427,17 @@
       }
       lineupList.appendChild(li);
     });
+    // "done" for this slot means a rest day was taken THIS WEEK, same as
+    // every other slot staying checked all week once satisfied — not just
+    // today, or the checkmark would flip back off the very next morning
+    // even though the week's rest day was already used.
     var restToday = Store.isRestDay(today);
-    var restLi = el('<li class="lineup-row' + (restToday ? ' done' : '') + '">' +
-      '<button class="lineup-check rest-check" title="toggle rest day">' + (restToday ? '✓' : '○') + '</button>' +
+    var restDoneThisWeek = restTaken > 0;
+    var restLabel = restToday ? 'taken today ✓' : (restDoneThisWeek ? 'taken this week ✓' : '');
+    var restLi = el('<li class="lineup-row' + (restDoneThisWeek ? ' done' : '') + '">' +
+      '<button class="lineup-check rest-check" title="toggle rest day">' + (restDoneThisWeek ? '✓' : '○') + '</button>' +
       '<div class="lineup-mid"><div class="lineup-label">😴 rest day' +
-      (restToday ? '<span class="muted small"> — taken ✓</span>' : '') + '</div></div></li>');
+      (restLabel ? '<span class="muted small"> — ' + restLabel + '</span>' : '') + '</div></div></li>');
     restLi.querySelector('.rest-check').addEventListener('click', function () {
       Store.toggleRestDay(today);
       render();
@@ -733,44 +739,139 @@
   // "perfect" number. See ED-recovery guardrails.
   var RECAP_SEEN_KEY = 'era:recapSeen';
 
-  // only called when there ISN'T enough multi-day history for a real trend
-  // yet — comments on yesterday's actual macros instead of a content-free
-  // "not enough data" filler, whenever there's something to comment on.
-  function yesterdayMicroInsight(yesterday, meals, workouts, t, seed) {
+  // the single most calorie-dense SHORT-named food from the day — verbose
+  // USDA search-result descriptions ("Eggs, Grade A, Large, egg white")
+  // read badly dropped into a sentence, so those get skipped in favor of
+  // whatever she actually typed or picked that's short enough to quote.
+  function foodHeadliner(meals) {
+    var candidates = meals.filter(function (m) { return m.name && m.name.length <= 22; });
+    if (!candidates.length) return null;
+    candidates = candidates.slice().sort(function (a, b) { return num(b.calories) - num(a.calories); });
+    return candidates[0].name.toLowerCase();
+  }
+
+  // a coach glancing at the WHOLE day, not reciting one stat — food (with
+  // an actual food name when there's a short one worth quoting), movement
+  // or rest, and mood if she logged one, combined into one reaction.
+  // Careful, deliberate rule: never praise under-eating, never shame going
+  // over or resting — validation is about showing up, not hitting a
+  // "perfect" number. See ED-recovery guardrails.
+  function yesterdayWholeDayReaction(yesterday, meals, workouts, isRestDay, vibeLevel, t, seed) {
     var parts = [];
+    var headliner = foodHeadliner(meals);
+
     if (t && meals.length) {
       var protein = sum(meals, function (m) { return num(m.protein); });
       var fat = sum(meals, function (m) { return num(m.fat); });
+      var cal = sum(meals, function (m) { return num(m.calories); });
       var proteinOk = protein >= t.protein * 0.8;
       var fatOk = fat <= t.fat * 1.3 && fat >= t.fat * 0.6;
-      if (proteinOk && fatOk) {
-        parts.push(pickVariant(seed + 'm', ['macros were clean yesterday. no notes ✨', 'protein and fat both showed up yesterday. no notes.']));
+      var calOk = cal >= t.calories * 0.85 && cal <= t.calories * 1.15;
+
+      if (proteinOk && fatOk && calOk) {
+        parts.push(pickVariant(seed + 'f', [
+          (headliner ? headliner + ' and the rest of yesterday\'s plate' : 'yesterday\'s plate') + ' was genuinely solid across the board. no notes.',
+          'macros lined up nicely yesterday' + (headliner ? ' — ' + headliner + ' and all' : '') + '. no notes.'
+        ]));
       } else {
         var notes = [];
         if (!proteinOk) notes.push('protein was low');
         if (!fatOk) notes.push(fat > t.fat * 1.3 ? 'fat ran high' : 'fat ran low');
-        parts.push(pickVariant(seed + 'm', [
-          notes.join(', ') + ' yesterday. new day, new plate 🍽️',
-          notes.join(', ') + ' yesterday — no biggie, today\'s a reset.'
+        if (!calOk) notes.push(cal > t.calories * 1.15 ? 'calories ran high' : 'calories ran low');
+        parts.push(pickVariant(seed + 'f', [
+          (headliner ? headliner + ' made an appearance, and ' : '') + notes.join(', ') + ' yesterday — new plate today, no pressure 🍽️',
+          (headliner ? headliner + ' happened, but ' : '') + notes.join(', ') + ' yesterday. that\'s just data, not a verdict.'
         ]));
       }
+    } else {
+      parts.push(pickVariant(seed + 'f', [
+        'no plate logged yesterday, so nothing to review there 👀',
+        'blank page on food yesterday — can\'t clown on data that isn\'t there.'
+      ]));
     }
+
     if (workouts.length) {
       var names = workouts.map(function (w) { return w.name || w.type; }).join(', ');
       var isMonday = new Date(yesterday + 'T00:00:00').getDay() === 1;
       if (isMonday) {
         parts.push(pickVariant(seed + 'w', [
-          'monday ' + names + ' though?? absolute legend behavior 🔥',
-          'showed up monday for ' + names + '. that\'s the flex 💪'
+          'and monday ' + names + ' though?? absolute legend behavior 🔥',
+          'and showing up monday for ' + names + '? that\'s the flex 💪'
         ]));
       } else {
         parts.push(pickVariant(seed + 'w', [
-          names + ' — logged it, crushed it, done 💪',
-          'that ' + names + ' was real work. respect.'
+          'and that ' + names + ' was real work. respect.',
+          'plus ' + names + ' — logged it, crushed it, done 💪'
         ]));
       }
+    } else if (isRestDay) {
+      parts.push(pickVariant(seed + 'w', [
+        'you also cashed in the rest day — earned, not lazy.',
+        'and rest day, taken on purpose. that counts too 😌'
+      ]));
     }
-    return parts.length ? parts.join(' ') : null;
+
+    if (vibeLevel) {
+      var vibeWord = ['rough', 'meh', 'okay', 'good', 'great'][vibeLevel - 1];
+      parts.push(pickVariant(seed + 'v', [
+        'mood-wise you were feeling ' + vibeWord + ' about it.',
+        'and vibe check came in ' + vibeWord + '.'
+      ]));
+    }
+
+    return parts.join(' ');
+  }
+
+  // an extra sentence on top of the day-reaction, only when a REAL
+  // multi-day pattern shows up — keeps the "genuine insight, not just
+  // yesterday's numbers" value without making that the whole message.
+  function bonusPatternClause(streaks, week, fortnight, seed) {
+    var proteinDays = week.filter(function (d) { return d.hasFood; });
+    var proteinMisses = proteinDays.filter(function (d) { return !d.proteinHit; });
+    if (proteinDays.length >= 3 && proteinMisses.length / proteinDays.length > 0.6) {
+      return pickVariant(seed + 'bp', [
+        'and that\'s not just yesterday — protein\'s been low a few days running.',
+        'worth flagging: protein keeps coming up short lately, not just yesterday.'
+      ]);
+    }
+
+    var withWorkout = fortnight.filter(function (d) { return d.hasWorkout && d.vibeLevel; });
+    var withoutWorkout = fortnight.filter(function (d) { return !d.hasWorkout && d.vibeLevel; });
+    if (withWorkout.length >= 2 && withoutWorkout.length >= 2) {
+      var avgW = sum(withWorkout, function (d) { return d.vibeLevel; }) / withWorkout.length;
+      var avgNW = sum(withoutWorkout, function (d) { return d.vibeLevel; }) / withoutWorkout.length;
+      if (avgW - avgNW >= 0.5) {
+        return pickVariant(seed + 'bp', [
+          'random fact your data keeps proving: workout days are your better-vibe days 👀',
+          'zoom out and it\'s clear — movement days hit different for your mood.'
+        ]);
+      }
+    }
+
+    var bestStreak = Math.max(streaks.fuel, streaks.fit);
+    if (bestStreak >= 3) {
+      if (streaks.fit >= streaks.fuel) {
+        return pickVariant(seed + 'bp', [
+          'and that\'s a ' + streaks.fit + '-day fit streak now. certified iconic 🔥',
+          'still riding a ' + streaks.fit + '-day fit streak. built different.'
+        ]);
+      }
+      return pickVariant(seed + 'bp', [
+        'and that\'s a ' + streaks.fuel + '-day fuel streak, no debate.',
+        'still on a ' + streaks.fuel + '-day fuel streak. that\'s just who you are now.'
+      ]);
+    }
+
+    var calDays = week.filter(function (d) { return d.hasFood; });
+    var calHits = calDays.filter(function (d) { return d.calHit; });
+    if (calDays.length >= 4 && calHits.length / calDays.length >= 0.8) {
+      return pickVariant(seed + 'bp', [
+        'and zooming out, more hits than misses this week — that\'s the real win 🎯',
+        'calories have been solid all week, streak or not.'
+      ]);
+    }
+
+    return null;
   }
 
   function yesterdayRecapText() {
@@ -780,6 +881,8 @@
     var yMeals = Store.mealsOn(yesterday);
     var yWorkouts = Store.workoutsOn(yesterday);
     var yTargets = Formulas.targets(Store.state.profile);
+    var yIsRestDay = Store.isRestDay(yesterday);
+    var yVibe = Store.state.vibes.filter(function (v) { return v.date === yesterday; })[0];
 
     var totalEverLogged = Store.state.meals.length + Store.state.workouts.length + Store.state.vibes.length;
     var seed = Store.todayISO(); // stable per-day, varies day to day
@@ -796,7 +899,7 @@
     var fortnight = recentDayStats(14);
 
     // long fit streak, no rest day — recovery nudge takes priority over
-    // blind cheerleading
+    // reacting to yesterday, since this one's about today
     if (streaks.fit >= 6) {
       return pickVariant(seed, [
         streaks.fit + ' days straight, zero rest days. rest is part of the plan too 🧘',
@@ -804,66 +907,9 @@
       ]);
     }
 
-    // protein trending low across recent logged-food days
-    var proteinDays = week.filter(function (d) { return d.hasFood; });
-    var proteinMisses = proteinDays.filter(function (d) { return !d.proteinHit; });
-    if (proteinDays.length >= 3 && proteinMisses.length / proteinDays.length > 0.6) {
-      return pickVariant(seed, [
-        'protein\'s been ghosting lately. lead with it today.',
-        'protein keeps coming up short — easy lever to pull today if you want one.'
-      ]);
-    }
-
-    // workout days vs non-workout days, vibe gap
-    var withWorkout = fortnight.filter(function (d) { return d.hasWorkout && d.vibeLevel; });
-    var withoutWorkout = fortnight.filter(function (d) { return !d.hasWorkout && d.vibeLevel; });
-    if (withWorkout.length >= 2 && withoutWorkout.length >= 2) {
-      var avgW = sum(withWorkout, function (d) { return d.vibeLevel; }) / withWorkout.length;
-      var avgNW = sum(withoutWorkout, function (d) { return d.vibeLevel; }) / withoutWorkout.length;
-      if (avgW - avgNW >= 0.5) {
-        return pickVariant(seed, [
-          'your data doesn\'t lie: workout days = better vibe days 👀',
-          'movement days hit different for your mood. just saying.'
-        ]);
-      }
-    }
-
-    // a streak worth naming
-    var bestStreak = Math.max(streaks.fuel, streaks.fit);
-    if (bestStreak >= 3) {
-      if (streaks.fit >= streaks.fuel) {
-        return pickVariant(seed, [
-          streaks.fit + '-day fit streak. certified iconic 🔥',
-          streaks.fit + ' days moving straight. you\'re just built different now.'
-        ]);
-      }
-      return pickVariant(seed, [
-        streaks.fuel + '-day fuel streak, no debate. keep it rolling.',
-        streaks.fuel + ' days on target straight. that\'s just who you are now.'
-      ]);
-    }
-
-    // calorie consistency without a clean streak (e.g. a couple of misses
-    // mixed in, but mostly on target)
-    var calDays = week.filter(function (d) { return d.hasFood; });
-    var calHits = calDays.filter(function (d) { return d.calHit; });
-    if (calDays.length >= 4 && calHits.length / calDays.length >= 0.8) {
-      return pickVariant(seed, [
-        'more hits than misses this week. that\'s the real win 🎯',
-        'calories have been solid lately — consistency\'s doing the work.'
-      ]);
-    }
-
-    // no multi-day trend yet — fall back to commenting on yesterday itself
-    // rather than a content-free "not enough data" filler, as long as
-    // there's actually something yesterday to reflect back
-    var micro = yesterdayMicroInsight(yesterday, yMeals, yWorkouts, yTargets, seed);
-    if (micro) return micro;
-
-    return pickVariant(seed, [
-      'nothing wild to report — keep logging, insights get sharper ✨',
-      'quiet week, data-wise. still a good week 💛'
-    ]);
+    var reaction = yesterdayWholeDayReaction(yesterday, yMeals, yWorkouts, yIsRestDay, yVibe ? yVibe.level : null, yTargets, seed);
+    var bonus = bonusPatternClause(streaks, week, fortnight, seed);
+    return bonus ? reaction + ' ' + bonus : reaction;
   }
 
   function yesterdayRecapCard() {
