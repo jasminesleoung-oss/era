@@ -601,25 +601,35 @@
     var maxPct = Math.max(140, Math.max.apply(null, pcts) + 15);
     var goalBottom = Math.round((100 / maxPct) * barAreaHeight);
 
-    var cols = days.map(function (d) {
+    // three separate rows (labels / plot / dates) instead of one goal-tick
+    // per bar — a per-bar tick gets fully hidden behind any bar taller than
+    // the goal, and reads as broken dashes rather than one line. A single
+    // line spanning the whole plot, stacked above the bars, stays visible
+    // the whole way across no matter how tall a bar gets.
+    var labels = '', tracks = '', dates = '';
+    days.forEach(function (d) {
       var pct = d[metric.key + 'Pct'] || 0;
       var val = d[metric.key];
       var h = Math.max(3, Math.round((pct / maxPct) * barAreaHeight));
       var dt = new Date(d.date + 'T00:00:00');
-      var label = (dt.getMonth() + 1) + '/' + dt.getDate();
+      var dateLabel = (dt.getMonth() + 1) + '/' + dt.getDate();
       var cls = metric.hit(d) ? 'hit' : 'miss';
       var barLabel = Math.round(val) + (metric.unit === 'kcal' ? '' : metric.unit);
-      return '<div class="macro-col">' +
-        '<div class="macro-bar-label">' + barLabel + '</div>' +
-        '<div class="macro-bar-track" style="height:' + barAreaHeight + 'px">' +
-          '<div class="macro-goal-tick" style="bottom:' + goalBottom + 'px"></div>' +
-          '<div class="macro-bar ' + cls + '" style="height:' + h + 'px" title="' + pct + '% of goal"></div>' +
-        '</div>' +
-        '<div class="macro-date">' + label + '</div></div>';
-    }).join('');
+      labels += '<div class="macro-col-cell macro-bar-label">' + barLabel + '</div>';
+      tracks += '<div class="macro-col-cell macro-bar-track"><div class="macro-bar ' + cls +
+        '" style="height:' + h + 'px" title="' + pct + '% of goal"></div></div>';
+      dates += '<div class="macro-col-cell macro-date">' + dateLabel + '</div>';
+    });
 
     var host = el('<div></div>');
-    host.innerHTML = '<div class="macro-chart-wrap"><div class="macro-chart">' + cols + '</div></div>' +
+    host.innerHTML = '<div class="macro-chart-wrap"><div class="macro-chart">' +
+      '<div class="macro-row">' + labels + '</div>' +
+      '<div class="macro-plot" style="height:' + barAreaHeight + 'px">' +
+        '<div class="macro-goal-line" style="bottom:' + goalBottom + 'px"></div>' +
+        '<div class="macro-row" style="height:100%">' + tracks + '</div>' +
+      '</div>' +
+      '<div class="macro-row">' + dates + '</div>' +
+      '</div></div>' +
       '<p class="muted small" style="margin-top:10px">dashed line = your ' + metric.label + ' goal (' +
       target + (metric.unit === 'kcal' ? ' kcal' : metric.unit) + ') · last ' +
       days.length + ' logged day' + (days.length === 1 ? '' : 's') + '</p>';

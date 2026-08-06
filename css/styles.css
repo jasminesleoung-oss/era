@@ -423,14 +423,22 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
 
 /* macro-over-time chart (its own page — views.macroHistory) */
 .macro-chart-wrap { overflow-x: auto; margin-top: 4px; padding-bottom: 2px; }
-.macro-chart { display: flex; gap: 10px; min-width: max-content; }
-.macro-col { display: flex; flex-direction: column; align-items: center; gap: 5px; width: 38px; flex: none; }
-.macro-bar-label { font-size: 10px; font-weight: 800; color: var(--text); white-space: nowrap; }
-.macro-bar-track { position: relative; width: 100%; display: flex; align-items: flex-end; }
-.macro-goal-tick { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(174,191,153,.55); }
-.macro-bar { width: 100%; border-radius: 5px 5px 2px 2px; min-height: 3px; position: relative; z-index: 1; transition: height .3s ease; background: linear-gradient(180deg, var(--lime-bright), var(--lime-dim)); }
+.macro-chart { display: flex; flex-direction: column; gap: 6px; min-width: max-content; }
+.macro-row { display: flex; gap: 10px; }
+.macro-col-cell { width: 38px; flex: none; text-align: center; white-space: nowrap; }
+.macro-bar-label { font-size: 10px; font-weight: 800; color: var(--text); }
+.macro-date { font-size: 9.5px; color: var(--muted); }
+.macro-plot { position: relative; }
+.macro-bar-track { height: 100%; display: flex; align-items: flex-end; }
+/* one continuous line across the whole plot, stacked above every bar (not
+   a per-bar tick) — stays visible even over a bar taller than the goal. */
+.macro-goal-line {
+  position: absolute; left: 0; right: 0; z-index: 2;
+  border-top: 2px dashed rgba(255,255,255,.85);
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.5));
+}
+.macro-bar { width: 100%; border-radius: 5px 5px 2px 2px; min-height: 3px; transition: height .3s ease; background: linear-gradient(180deg, var(--lime-bright), var(--lime-dim)); }
 .macro-bar.miss { background: var(--surface-2); border: 1px solid var(--line); }
-.macro-date { font-size: 9.5px; color: var(--muted); white-space: nowrap; }
 
 /* weekly lineup checklist */
 .lineup-list { margin-top: 6px; }
