@@ -1591,6 +1591,8 @@
     }
     insightsFold.innerHTML = '<summary>insights 📊</summary><div class="fold-body">' + chartHTML + '</div>';
     vibeCard.appendChild(insightsFold);
+    vibeCard.appendChild(el('<button class="link-btn" id="openBubbleGame" style="margin-top:10px">🫧 need a break? pop some bubbles</button>'));
+    vibeCard.querySelector('#openBubbleGame').addEventListener('click', function () { setView('bubbleGame'); });
     wrap.appendChild(vibeCard);
 
     // ---- cycle tracker ----
@@ -1666,6 +1668,38 @@
       cycleCard.appendChild(el('<p class="muted small" style="margin-top:10px">nothing logged yet — tap above when it starts 🩸</p>'));
     }
     wrap.appendChild(cycleCard);
+
+    return wrap;
+  };
+
+  // ==== BUBBLE POP (reached via a link on the vibe-check card, not a tab —
+  // pure mental-break toy, deliberately not wired into the points economy) ==
+  views.bubbleGame = function () {
+    var wrap = el('<section class="stack"></section>');
+    wrap.appendChild(el('<button class="link-btn back-link" id="bubbleBack">← back to you</button>'));
+    wrap.appendChild(el('<div class="hello"><h1>bubble pop 🫧</h1><p class="muted">aim, tap, match 3+ — just for fun, no points attached ✨</p></div>'));
+    wrap.querySelector('#bubbleBack').addEventListener('click', function () { setView('you'); });
+
+    var card = el('<div class="card"></div>');
+    card.innerHTML = '<div class="card-head"><h3 id="bubbleScore">score: 0</h3><span class="muted small" id="bubbleHigh"></span></div>' +
+      '<div id="bubbleHost" class="bubble-host"></div>' +
+      '<button class="btn wide" id="bubbleRestart" style="margin-top:12px">restart</button>';
+    wrap.appendChild(card);
+
+    var host = card.querySelector('#bubbleHost');
+    var scoreEl = card.querySelector('#bubbleScore');
+    var highEl = card.querySelector('#bubbleHigh');
+
+    var game = BubbleGame.mount(host, function (liveScore) {
+      scoreEl.textContent = 'score: ' + liveScore;
+      highEl.textContent = 'best: ' + game.getHighScore();
+    });
+    highEl.textContent = 'best: ' + game.getHighScore();
+    card.querySelector('#bubbleRestart').addEventListener('click', function () {
+      game.restart();
+      scoreEl.textContent = 'score: 0';
+      highEl.textContent = 'best: ' + game.getHighScore();
+    });
 
     return wrap;
   };
