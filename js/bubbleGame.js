@@ -7,6 +7,8 @@ var BubbleGame = (function () {
   var COLORS = ['#c6ff3a', '#ff5ca8', '#ffe14d', '#7c5cff', '#2fd6c0'];
   var COLS = 8;
   var HS_KEY = 'era:bubbleHighScore';
+  var BOMB = 'bomb';
+  var BOMB_CHANCE = 0.08; // ~1 in 12 upcoming bubbles — a reward for playing, never pre-placed in the board itself
 
   function mount(host, onScoreChange) {
     var canvas = document.createElement('canvas');
@@ -26,16 +28,20 @@ var BubbleGame = (function () {
     // warped circles into ellipses and threw off aim/collision math).
     var cssWidth = 320, r, rowHeight, visibleRows = 9, dangerRow, cssHeight;
 
-    var grid = []; // grid[row][col] = color string or null
+    var grid = []; // grid[row][col] = color string, BOMB, or null
     var score = 0;
     var shots = 0;
+    var comboStreak = 0; // consecutive shots in a row that each popped something
     var running = true;
     var current = null; // {x,y,vx,vy,color,moving}
     var nextColor = randomColor();
     var aimAngle = -Math.PI / 2;
     var particles = [];
+    var floatingTexts = []; // combo / bomb callouts
+    var fallingBubbles = []; // disconnected bubbles animating off the bottom
 
     function randomColor() { return COLORS[Math.floor(Math.random() * COLORS.length)]; }
+    function pickNextColor() { return Math.random() < BOMB_CHANCE ? BOMB : randomColor(); }
     function colsInRow(row) { return row % 2 ? COLS - 1 : COLS; }
     function cellX(row, col) { return r + col * 2 * r + (row % 2 ? r : 0); }
     function cellY(row) { return r + row * rowHeight; }
@@ -53,7 +59,7 @@ var BubbleGame = (function () {
 
     function spawnShot() {
       current = { x: shooterPos().x, y: shooterPos().y, color: nextColor, moving: false };
-      nextColor = randomColor();
+      nextColor = pickNextColor();
     }
 
     // hex neighbor offsets differ depending on whether the row is
@@ -73,9 +79,14 @@ var BubbleGame = (function () {
       return out;
     }
 
+    function addFloatingText(x, y, text, color) {
+      floatingTexts.push({ x: x, y: y, text: text, color: color || '#f2f7ea', life: 45, vy: -0.6 });
+    }
+
+    // returns how many bubbles popped (0 = nothing happened, for combo tracking)
     function popGroupAt(row, col) {
       var color = grid[row][col];
-      if (!color) return;
+      if (!color || color === BOMB) return 0;
       var seen = {}, stack = [[row, col]], group = [];
       seen[row + ',' + col] = true;
       while (stack.length) {
@@ -88,16 +99,36 @@ var BubbleGame = (function () {
           stack.push(n);
         });
       }
-      if (group.length >= 3) {
-        group.forEach(function (g) {
-          spawnParticles(cellX(g[0], g[1]), cellY(g[0], g[1]), color);
+      if (group.length < 3) return 0;
+      group.forEach(function (g) {
+        spawnParticles(cellX(g[0], g[1]), cellY(g[0], g[1]), color);
+        grid[g[0]][g[1]] = null;
+      });
+      score += group.length * 10;
+      dropFloating();
+      bumpHighScore();
+      onScoreChange && onScoreChange(score);
+      return group.length;
+    }
+
+    // a wildcard — pops itself plus every immediate neighbor regardless of
+    // color. Always "hits" (returns > 0) so it keeps a combo alive.
+    function popBomb(row, col) {
+      var cells = [[row, col]].concat(neighbors(row, col));
+      var popped = 0;
+      cells.forEach(function (g) {
+        if (grid[g[0]] && grid[g[0]][g[1]]) {
+          spawnParticles(cellX(g[0], g[1]), cellY(g[0], g[1]), grid[g[0]][g[1]]);
           grid[g[0]][g[1]] = null;
-        });
-        score += group.length * 10;
-        dropFloating();
-        bumpHighScore();
-        onScoreChange && onScoreChange(score);
-      }
+          popped++;
+        }
+      });
+      score += popped * 12;
+      addFloatingText(cellX(row, col), cellY(row, col), 'boom! 💥', '#c6ff3a');
+      dropFloating();
+      bumpHighScore();
+      onScoreChange && onScoreChange(score);
+      return Math.max(popped, 1);
     }
 
     // saved as she plays, not just on game over — this game never really
@@ -109,7 +140,7 @@ var BubbleGame = (function () {
     }
 
     // anything not reachable from the ceiling (row 0) via same-grid
-    // neighbors is floating in mid-air and drops off.
+    // neighbors is floating in mid-air and falls off.
     function dropFloating() {
       var reached = {}, queue = [];
       (grid[0] || []).forEach(function (c, i) { if (c) { queue.push([0, i]); reached['0,' + i] = true; } });
@@ -126,7 +157,7 @@ var BubbleGame = (function () {
       for (var row = 0; row < grid.length; row++) {
         for (var col = 0; col < grid[row].length; col++) {
           if (grid[row][col] && !reached[row + ',' + col]) {
-            spawnParticles(cellX(row, col), cellY(row, col), grid[row][col]);
+            fallingBubbles.push({ x: cellX(row, col), y: cellY(row, col), vy: 0, color: grid[row][col] });
             grid[row][col] = null;
             dropped++;
           }
@@ -140,7 +171,18 @@ var BubbleGame = (function () {
       var arr = [];
       for (var c = 0; c < cols; c++) arr.push(randomColor());
       grid.unshift(arr);
-      if (grid.length > dangerRow) triggerGameOver();
+    }
+
+    // game-over must track where bubbles actually ARE, not how many row
+    // slots the grid array happens to have grown to — popped/dropped rows
+    // near the bottom leave behind empty (but still-allocated) rows, and
+    // checking array length there ended the game on a board nowhere near
+    // the visible danger line.
+    function pastDangerLine() {
+      for (var row = dangerRow; row < grid.length; row++) {
+        if (grid[row].some(function (c) { return c; })) return true;
+      }
+      return false;
     }
 
     function triggerGameOver() {
@@ -178,11 +220,27 @@ var BubbleGame = (function () {
     function settle() {
       var cell = nearestEmptyCell(current.x, current.y);
       while (grid.length <= cell[0]) grid.push(new Array(colsInRow(grid.length)).fill(null));
-      grid[cell[0]][cell[1]] = current.color;
+      var placedColor = current.color;
+      grid[cell[0]][cell[1]] = placedColor;
       current = null;
       shots++;
       if (shots % 5 === 0) addRow();
-      popGroupAt(cell[0], cell[1]);
+
+      var popped = placedColor === BOMB ? popBomb(cell[0], cell[1]) : popGroupAt(cell[0], cell[1]);
+      if (popped) {
+        comboStreak++;
+        if (comboStreak >= 2) {
+          var bonus = (comboStreak - 1) * 15;
+          score += bonus;
+          bumpHighScore();
+          onScoreChange && onScoreChange(score);
+          addFloatingText(cellX(cell[0], cell[1]), cellY(cell[0], cell[1]) - r * 1.6, 'combo x' + comboStreak + '! +' + bonus, '#ffe14d');
+        }
+      } else {
+        comboStreak = 0;
+      }
+
+      if (pastDangerLine()) triggerGameOver();
       if (running && allCleared()) initGrid();
       if (running) spawnShot();
     }
@@ -190,7 +248,7 @@ var BubbleGame = (function () {
     function spawnParticles(x, y, color) {
       for (var i = 0; i < 6; i++) {
         particles.push({
-          x: x, y: y, color: color,
+          x: x, y: y, color: color === BOMB ? '#c6ff3a' : color,
           vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4 - 1,
           life: 20
         });
@@ -209,11 +267,58 @@ var BubbleGame = (function () {
       current.moving = true;
     }
 
+    function swapNext() {
+      if (!current || current.moving) return;
+      var tmp = current.color;
+      current.color = nextColor;
+      nextColor = tmp;
+    }
+
+    // dry-runs the exact same physics as update() below (wall bounces +
+    // collision) to draw a real predicted flight path instead of a short
+    // static line — the classic bubble-shooter aim guide.
+    function simulatePath(angle) {
+      var speed = 9;
+      var x = shooterPos().x, y = shooterPos().y;
+      var vx = Math.cos(angle) * speed, vy = Math.sin(angle) * speed;
+      var pts = [{ x: x, y: y }];
+      var hitDist = 2 * r * 0.92;
+      for (var i = 0; i < 160; i++) {
+        x += vx; y += vy;
+        if (x - r < 0) { x = r; vx *= -1; }
+        if (x + r > cssWidth) { x = cssWidth - r; vx *= -1; }
+        pts.push({ x: x, y: y });
+        if (y - r <= 0) break;
+        var hit = false;
+        for (var row = 0; row < grid.length && !hit; row++) {
+          for (var col = 0; col < grid[row].length; col++) {
+            if (!grid[row][col]) continue;
+            var ddx = x - cellX(row, col), ddy = y - cellY(row, col);
+            if (ddx * ddx + ddy * ddy < hitDist * hitDist) { hit = true; break; }
+          }
+        }
+        if (hit) break;
+      }
+      return pts;
+    }
+
     function update() {
       if (particles.length) {
         particles = particles.filter(function (p) {
           p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life--;
           return p.life > 0;
+        });
+      }
+      if (floatingTexts.length) {
+        floatingTexts = floatingTexts.filter(function (t) {
+          t.y += t.vy; t.life--;
+          return t.life > 0;
+        });
+      }
+      if (fallingBubbles.length) {
+        fallingBubbles = fallingBubbles.filter(function (f) {
+          f.vy += 0.5; f.y += f.vy;
+          return f.y < cssHeight + r * 2;
         });
       }
       if (!current || !current.moving) return;
@@ -222,11 +327,11 @@ var BubbleGame = (function () {
       if (current.x - r < 0) { current.x = r; current.vx *= -1; }
       if (current.x + r > cssWidth) { current.x = cssWidth - r; current.vx *= -1; }
       if (current.y - r <= 0) { current.y = r; settle(); return; }
+      var hitDist = 2 * r * 0.92;
       for (var row = 0; row < grid.length; row++) {
         for (var col = 0; col < grid[row].length; col++) {
           if (!grid[row][col]) continue;
           var dx = current.x - cellX(row, col), dy = current.y - cellY(row, col);
-          var hitDist = 2 * r * 0.92;
           if (dx * dx + dy * dy < hitDist * hitDist) { settle(); return; }
         }
       }
@@ -234,6 +339,21 @@ var BubbleGame = (function () {
 
     function drawBubble(x, y, color, radius) {
       var rad = radius || r * 0.92;
+      if (color === BOMB) {
+        ctx.beginPath();
+        ctx.arc(x, y, rad, 0, Math.PI * 2);
+        ctx.fillStyle = '#12160a';
+        ctx.fill();
+        ctx.lineWidth = Math.max(2, rad * 0.1);
+        ctx.strokeStyle = '#c6ff3a';
+        ctx.stroke();
+        ctx.fillStyle = '#c6ff3a';
+        ctx.font = '700 ' + Math.round(rad * 1.1) + 'px Bricolage Grotesque, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✷', x, y + 1);
+        return;
+      }
       ctx.beginPath();
       ctx.arc(x, y, rad, 0, Math.PI * 2);
       ctx.fillStyle = color;
@@ -259,6 +379,8 @@ var BubbleGame = (function () {
       ctx.stroke();
       ctx.setLineDash([]);
 
+      fallingBubbles.forEach(function (f) { drawBubble(f.x, f.y, f.color); });
+
       particles.forEach(function (p) {
         ctx.globalAlpha = Math.max(0, p.life / 20);
         drawBubble(p.x, p.y, p.color, r * 0.4);
@@ -266,14 +388,27 @@ var BubbleGame = (function () {
       });
 
       var sp = shooterPos();
+      if (current && !current.moving && running) {
+        var path = simulatePath(aimAngle);
+        ctx.strokeStyle = 'rgba(242,247,234,.35)';
+        ctx.setLineDash([6, 8]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        path.forEach(function (pt, i) { i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y); });
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
       if (current) drawBubble(current.x, current.y, current.color);
-      ctx.strokeStyle = 'rgba(242,247,234,.25)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(sp.x, sp.y);
-      ctx.lineTo(sp.x + Math.cos(aimAngle) * 40, sp.y + Math.sin(aimAngle) * 40);
-      ctx.stroke();
       drawBubble(sp.x + r * 2.6, sp.y, nextColor, r * 0.7);
+
+      floatingTexts.forEach(function (t) {
+        ctx.globalAlpha = Math.max(0, t.life / 45);
+        ctx.fillStyle = t.color;
+        ctx.font = '800 14px Bricolage Grotesque, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(t.text, t.x, t.y);
+        ctx.globalAlpha = 1;
+      });
 
       if (!running) {
         ctx.fillStyle = 'rgba(10,13,7,.72)';
@@ -328,11 +463,16 @@ var BubbleGame = (function () {
     canvas.addEventListener('pointerdown', function (e) {
       if (!running) { restart(); return; }
       var p = pointerPos(e);
+      var sp = shooterPos();
+      var nx = sp.x + r * 2.6, ny = sp.y;
+      var ndx = p.x - nx, ndy = p.y - ny;
+      if (ndx * ndx + ndy * ndy < (r * 0.9) * (r * 0.9)) { swapNext(); return; }
       shoot(p.x, p.y);
     });
 
     function restart() {
-      grid = []; score = 0; shots = 0; running = true; particles = [];
+      grid = []; score = 0; shots = 0; comboStreak = 0; running = true;
+      particles = []; floatingTexts = []; fallingBubbles = [];
       initGrid();
       spawnShot();
       onScoreChange && onScoreChange(score);

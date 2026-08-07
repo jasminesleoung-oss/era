@@ -1591,8 +1591,6 @@
     }
     insightsFold.innerHTML = '<summary>insights 📊</summary><div class="fold-body">' + chartHTML + '</div>';
     vibeCard.appendChild(insightsFold);
-    vibeCard.appendChild(el('<button class="link-btn" id="openBubbleGame" style="margin-top:10px">🫧 need a break? pop some bubbles</button>'));
-    vibeCard.querySelector('#openBubbleGame').addEventListener('click', function () { setView('bubbleGame'); });
     wrap.appendChild(vibeCard);
 
     // ---- cycle tracker ----
@@ -1669,15 +1667,21 @@
     }
     wrap.appendChild(cycleCard);
 
+    var breakCard = el('<div class="card"></div>');
+    breakCard.appendChild(el('<button class="link-btn" id="openBubbleGame">🫧 need a break? pop some bubbles</button>'));
+    breakCard.querySelector('#openBubbleGame').addEventListener('click', function () { setView('bubbleGame'); });
+    wrap.appendChild(breakCard);
+
     return wrap;
   };
 
-  // ==== BUBBLE POP (reached via a link on the vibe-check card, not a tab —
-  // pure mental-break toy, deliberately not wired into the points economy) ==
+  // ==== BUBBLE POP (reached via a link on its own tile at the bottom of
+  // the you page, not a tab — pure mental-break toy, deliberately not
+  // wired into the points economy) ====================================
   views.bubbleGame = function () {
     var wrap = el('<section class="stack"></section>');
     wrap.appendChild(el('<button class="link-btn back-link" id="bubbleBack">← back to you</button>'));
-    wrap.appendChild(el('<div class="hello"><h1>bubble pop 🫧</h1><p class="muted">aim, tap, match 3+ — just for fun, no points attached ✨</p></div>'));
+    wrap.appendChild(el('<div class="hello"><h1>bubble pop 🫧</h1><p class="muted">match 3+, chain combos, tap the next bubble to swap it ✨</p></div>'));
     wrap.querySelector('#bubbleBack').addEventListener('click', function () { setView('you'); });
 
     var card = el('<div class="card"></div>');
