@@ -156,7 +156,7 @@
     }).join('');
     return '<h3 style="margin-top:2px">add a workout</h3>' +
       '<form id="wForm" class="form-grid">' +
-      '<label class="wide">date<input name="date" type="date" value="' + Store.todayISO() + '" max="' + Store.todayISO() + '" required></label>' +
+      '<label class="wide">date<span class="date-wrap"><input name="date" type="date" value="' + Store.todayISO() + '" max="' + Store.todayISO() + '" required></span></label>' +
       '<label>name<input name="name" placeholder="e.g. morning run" required></label>' +
       '<label>type<select name="type">' + opts + '</select></label>' +
       '<label>duration (min)<input name="durationMin" type="number" min="1" value="30" required></label>' +
@@ -184,7 +184,7 @@
       '<ul class="results" id="results"></ul>' +
       '<div id="pickedBanner"></div>' +
       '<form id="mForm" class="form-grid">' +
-      '<label class="wide">date<input name="date" type="date" value="' + Store.todayISO() + '" max="' + Store.todayISO() + '" required></label>' +
+      '<label class="wide">date<span class="date-wrap"><input name="date" type="date" value="' + Store.todayISO() + '" max="' + Store.todayISO() + '" required></span></label>' +
       '<label>portion (g)<input name="grams" type="number" min="1" placeholder="e.g. 200"></label>' +
       '<label>calories<input name="calories" type="number" min="0" required></label>' +
       '<label>protein (g)<input name="protein" type="number" min="0" placeholder="0"></label>' +
@@ -1003,12 +1003,12 @@
       '</div>' +
       '<form id="qForm" class="form-grid" onsubmit="return false">' +
         '<label class="wide">what’s the task?<input name="name" placeholder="e.g. book the dentist 🦷" autocomplete="off" required></label>' +
-        '<div class="wide" id="oneoffFields"><label class="wide">deadline (optional)<input name="deadline" type="date"></label></div>' +
+        '<div class="wide" id="oneoffFields"><label class="wide">deadline (optional)<span class="date-wrap"><input name="deadline" type="date"></span></label></div>' +
         '<div class="wide form-grid" id="recurringFields" style="display:none;padding:0">' +
           '<label>how often<select name="freq">' +
             FREQ_OPTIONS.map(function (f) { return '<option value="' + f.value + '">' + f.label + '</option>'; }).join('') +
           '</select></label>' +
-          '<label>ends by<input name="endDate" type="date"></label>' +
+          '<label>ends by<span class="date-wrap"><input name="endDate" type="date"></span></label>' +
         '</div>' +
       '</form>' +
       '<div class="recent-label" style="margin-top:8px">how much are you dreading it? 😬</div>' +
@@ -1407,7 +1407,7 @@
     var pastFormWrap = el('<div style="display:none;margin-top:12px"></div>');
     pastFormWrap.innerHTML =
       '<form id="pastPeriodForm" class="form-grid">' +
-        '<label>start date<input name="start" type="date" required value="' + today + '"></label>' +
+        '<label>start date<span class="date-wrap"><input name="start" type="date" required value="' + today + '"></span></label>' +
         '<label>length (days)<input name="length" type="number" min="1" max="14" value="5" required></label>' +
         '<label class="wide">flow<select name="flow">' +
           '<option value="light">light</option><option value="medium" selected>medium</option><option value="heavy">heavy</option>' +

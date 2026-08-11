@@ -248,13 +248,21 @@ h3 { font-size: 17px; margin: 0 0 12px; letter-spacing: -.3px; }
   max-width: 100%; font-family: inherit; box-sizing: border-box; display: block;
 }
 .form-grid input:focus, .form-grid select:focus { outline: none; border-color: var(--lime); box-shadow: 0 0 0 3px rgba(198,255,58,.14); }
-/* iOS Safari gives date/time inputs an internal minimum width that plain
-   min-width:0 doesn't override, so a filled-in date can still force the
-   input past its grid track. -webkit-min-logical-width targets the cause;
-   overflow:hidden (here and on the wrapping label/.wide above) is the
-   belt-and-suspenders fix — whatever WebKit tries to render past the box's
-   own edge just gets clipped instead of pushing the layout wider. */
-.form-grid input[type="date"] { min-width: 0; -webkit-min-logical-width: 0; overflow: hidden; }
+/* iOS Safari sizes date/time inputs off their internal content instead of
+   respecting width:100%/max-width:100% — confirmed live: the box rendered
+   past the card edge with no rounded corner on the right, not just
+   visually snug. Percentage-width tricks (width:1px + min-width:100%)
+   don't reliably fix it either — tested and it just collapsed the field
+   to a sliver instead. The fix that actually holds: take the input out of
+   normal sizing entirely with absolute positioning inside a wrapper that
+   IS sized normally by the grid — the input then fills exactly that box
+   regardless of what width its own native content wants to be.
+   See .date-wrap below; input[type=date] itself is positioned there. */
+.form-grid input[type="date"] {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  box-sizing: border-box; -webkit-min-logical-width: 0;
+}
+.date-wrap { position: relative; width: 100%; height: 46px; overflow: hidden; }
 .form-grid button { margin-top: 4px; }
 
 /* recent foods */
