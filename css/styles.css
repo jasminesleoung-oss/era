@@ -310,7 +310,6 @@ li.results-label {
 .floor-note strong { color: var(--gold); }
 .tips { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 7px; font-size: 14px; }
 .tips li { line-height: 1.45; }
-.recap-text { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--text); }
 .week { display: grid; grid-template-columns: 1fr; gap: 8px; }
 .day { display: grid; grid-template-columns: 46px 1fr; gap: 12px; align-items: baseline; padding: 12px 13px; background: var(--surface-2); border-radius: 12px; }
 .day-name { font-weight: 800; color: var(--lime); font-size: 13px; }
@@ -481,9 +480,6 @@ button.lineup-check:hover { color: var(--lime); }
   padding: 10px 12px; border-radius: 12px; font-size: 14px; font-family: inherit;
 }
 .exercise-log-form input:focus { outline: none; border-color: var(--lime); box-shadow: 0 0 0 3px rgba(198,255,58,.14); }
-
-/* bubble pop mini game */
-.bubble-host { background: var(--surface-2); border-radius: 16px; overflow: hidden; margin-top: 4px; }
 
 /* auth gate + account */
 .seg { display: flex; gap: 6px; background: var(--surface-2); padding: 5px; border-radius: 12px; margin-bottom: 14px; }

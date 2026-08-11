@@ -156,6 +156,7 @@
     }).join('');
     return '<h3 style="margin-top:2px">add a workout</h3>' +
       '<form id="wForm" class="form-grid">' +
+      '<label class="wide">date<input name="date" type="date" value="' + Store.todayISO() + '" max="' + Store.todayISO() + '" required></label>' +
       '<label>name<input name="name" placeholder="e.g. morning run" required></label>' +
       '<label>type<select name="type">' + opts + '</select></label>' +
       '<label>duration (min)<input name="durationMin" type="number" min="1" value="30" required></label>' +
@@ -183,6 +184,7 @@
       '<ul class="results" id="results"></ul>' +
       '<div id="pickedBanner"></div>' +
       '<form id="mForm" class="form-grid">' +
+      '<label class="wide">date<input name="date" type="date" value="' + Store.todayISO() + '" max="' + Store.todayISO() + '" required></label>' +
       '<label>portion (g)<input name="grams" type="number" min="1" placeholder="e.g. 200"></label>' +
       '<label>calories<input name="calories" type="number" min="0" required></label>' +
       '<label>protein (g)<input name="protein" type="number" min="0" placeholder="0"></label>' +
@@ -319,16 +321,16 @@
         calories: num(f.calories.value),
         protein: num(f.protein.value),
         carbs: num(f.carbs.value),
-        fat: num(f.fat.value)
+        fat: num(f.fat.value),
+        date: f.date.value || Store.todayISO()
       };
       if (editingMealId) {
         Store.updateMeal(editingMealId, data);
         toast('food updated ✓');
         editingMealId = null;
       } else {
-        data.date = Store.todayISO();
         Store.addMeal(data);
-        toast(pickRandom(FOOD_LOGGED_MSGS));
+        toast(data.date === Store.todayISO() ? pickRandom(FOOD_LOGGED_MSGS) : 'backfilled ✨ streaks updated');
       }
       onDone();
     });
@@ -343,16 +345,17 @@
         type: f.type.value,
         durationMin: num(f.durationMin.value),
         intensity: f.intensity.value,
-        notes: f.notes.value.trim()
+        notes: f.notes.value.trim(),
+        date: f.date.value || Store.todayISO()
       };
       if (editingWorkoutId) {
         Store.updateWorkout(editingWorkoutId, data);
         toast('workout updated ✓');
         editingWorkoutId = null;
       } else {
-        data.date = Store.todayISO();
         var pts = Store.addWorkout(data);
-        toast(pickRandom(WORKOUT_LOGGED_MSGS) + ' +' + pts + ' pts');
+        var msg = data.date === Store.todayISO() ? pickRandom(WORKOUT_LOGGED_MSGS) : 'backfilled ✨ streaks updated';
+        toast(msg + ' +' + pts + ' pts');
       }
       onDone();
     });
@@ -371,9 +374,6 @@
       '<div class="hello"><h1>' + (firstName ? 'hey ' + esc(firstName) : 'hey bestie') +
       ' 💅</h1><p class="muted">' + prettyDate(today) + ' · let’s get it ✨</p></div>'
     ));
-
-    var recap = yesterdayRecapCard();
-    if (recap) wrap.appendChild(recap);
 
     wrap.appendChild(streakCard());
 
@@ -520,6 +520,7 @@
     function editWorkout(w) {
       editingWorkoutId = w.id;
       var f = wFormWrap.querySelector('#wForm');
+      f.date.value = w.date || Store.todayISO();
       f.name.value = w.name || '';
       f.type.value = w.type;
       f.durationMin.value = w.durationMin;
@@ -532,6 +533,7 @@
     function editMeal(m) {
       editingMealId = m.id;
       var f = mFormWrap.querySelector('#mForm');
+      f.date.value = m.date || Store.todayISO();
       f.name.value = m.name || '';
       f.grams.value = '';
       f.calories.value = num(m.calories);
@@ -597,9 +599,9 @@
         formWrap.style.display = 'block';
       }
     }
-    wireDraft('workout', wFormWrap, ['name', 'type', 'durationMin', 'intensity', 'notes'],
+    wireDraft('workout', wFormWrap, ['date', 'name', 'type', 'durationMin', 'intensity', 'notes'],
       function () { return editingWorkoutId; }, function (v) { editingWorkoutId = v; });
-    wireDraft('food', mFormWrap, ['name', 'grams', 'calories', 'protein', 'carbs', 'fat'],
+    wireDraft('food', mFormWrap, ['date', 'name', 'grams', 'calories', 'protein', 'carbs', 'fat'],
       function () { return editingMealId; }, function (v) { editingMealId = v; });
     wireWorkoutForm(wFormWrap, function () { clearFormDraft('workout'); render(); });
     wireFoodForm(mFormWrap, function () { clearFormDraft('food'); render(); });
@@ -749,211 +751,6 @@
       d.setDate(d.getDate() - 1);
     }
     return out;
-  }
-
-  // stable-but-varied pick: same day always shows the same variant (no
-  // flicker on re-render), different days get different phrasing.
-  function pickVariant(seed, variants) {
-    var hash = 0;
-    for (var i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-    return variants[hash % variants.length];
-  }
-
-  // shows once per calendar day (dismissible, reappears — for the new
-  // "yesterday" — the next day) so opening the app surfaces an actual
-  // insight (a real multi-day pattern) plus one piece of guidance for
-  // today, instead of just restating yesterday's numbers. Rule-based, not
-  // an LLM call — no backend to call one from — but built with enough
-  // real conditions + phrasing variants that it shouldn't feel robotic.
-  // Careful, deliberate rule: never praise under-eating, never shame going
-  // over or resting — validation is about showing up, not hitting a
-  // "perfect" number. See ED-recovery guardrails.
-  var RECAP_SEEN_KEY = 'era:recapSeen';
-
-  // the single most calorie-dense SHORT-named food from the day — verbose
-  // USDA search-result descriptions ("Eggs, Grade A, Large, egg white")
-  // read badly dropped into a sentence, so those get skipped in favor of
-  // whatever she actually typed or picked that's short enough to quote.
-  function foodHeadliner(meals) {
-    var candidates = meals.filter(function (m) { return m.name && m.name.length <= 22; });
-    if (!candidates.length) return null;
-    candidates = candidates.slice().sort(function (a, b) { return num(b.calories) - num(a.calories); });
-    return candidates[0].name.toLowerCase();
-  }
-
-  // a coach glancing at the WHOLE day, not reciting one stat — food (with
-  // an actual food name when there's a short one worth quoting), movement
-  // or rest, and mood if she logged one, combined into one reaction.
-  // Careful, deliberate rule: never praise under-eating, never shame going
-  // over or resting — validation is about showing up, not hitting a
-  // "perfect" number. See ED-recovery guardrails.
-  function yesterdayWholeDayReaction(yesterday, meals, workouts, isRestDay, vibeLevel, t, seed) {
-    var parts = [];
-    var headliner = foodHeadliner(meals);
-
-    if (t && meals.length) {
-      var protein = sum(meals, function (m) { return num(m.protein); });
-      var fat = sum(meals, function (m) { return num(m.fat); });
-      var cal = sum(meals, function (m) { return num(m.calories); });
-      var proteinOk = protein >= t.protein * 0.8;
-      var fatOk = fat <= t.fat * 1.3 && fat >= t.fat * 0.6;
-      var calOk = cal >= t.calories * 0.85 && cal <= t.calories * 1.15;
-
-      if (proteinOk && fatOk && calOk) {
-        parts.push(pickVariant(seed + 'f', [
-          (headliner ? headliner + ' and the rest of yesterday\'s plate' : 'yesterday\'s plate') + ' was genuinely solid across the board. no notes.',
-          'macros lined up nicely yesterday' + (headliner ? ' — ' + headliner + ' and all' : '') + '. no notes.'
-        ]));
-      } else {
-        var notes = [];
-        if (!proteinOk) notes.push('protein was low');
-        if (!fatOk) notes.push(fat > t.fat * 1.3 ? 'fat ran high' : 'fat ran low');
-        if (!calOk) notes.push(cal > t.calories * 1.15 ? 'calories ran high' : 'calories ran low');
-        parts.push(pickVariant(seed + 'f', [
-          (headliner ? headliner + ' made an appearance, and ' : '') + notes.join(', ') + ' yesterday — new plate today, no pressure 🍽️',
-          (headliner ? headliner + ' happened, but ' : '') + notes.join(', ') + ' yesterday. that\'s just data, not a verdict.'
-        ]));
-      }
-    } else {
-      parts.push(pickVariant(seed + 'f', [
-        'no plate logged yesterday, so nothing to review there 👀',
-        'blank page on food yesterday — can\'t clown on data that isn\'t there.'
-      ]));
-    }
-
-    if (workouts.length) {
-      var names = workouts.map(function (w) { return w.name || w.type; }).join(', ');
-      var isMonday = new Date(yesterday + 'T00:00:00').getDay() === 1;
-      if (isMonday) {
-        parts.push(pickVariant(seed + 'w', [
-          'and monday ' + names + ' though?? absolute legend behavior 🔥',
-          'and showing up monday for ' + names + '? that\'s the flex 💪'
-        ]));
-      } else {
-        parts.push(pickVariant(seed + 'w', [
-          'and that ' + names + ' was real work. respect.',
-          'plus ' + names + ' — logged it, crushed it, done 💪'
-        ]));
-      }
-    } else if (isRestDay) {
-      parts.push(pickVariant(seed + 'w', [
-        'you also cashed in the rest day — earned, not lazy.',
-        'and rest day, taken on purpose. that counts too 😌'
-      ]));
-    }
-
-    if (vibeLevel) {
-      var vibeWord = ['rough', 'meh', 'okay', 'good', 'great'][vibeLevel - 1];
-      parts.push(pickVariant(seed + 'v', [
-        'mood-wise you were feeling ' + vibeWord + ' about it.',
-        'and vibe check came in ' + vibeWord + '.'
-      ]));
-    }
-
-    return parts.join(' ');
-  }
-
-  // an extra sentence on top of the day-reaction, only when a REAL
-  // multi-day pattern shows up — keeps the "genuine insight, not just
-  // yesterday's numbers" value without making that the whole message.
-  function bonusPatternClause(streaks, week, fortnight, seed) {
-    var proteinDays = week.filter(function (d) { return d.hasFood; });
-    var proteinMisses = proteinDays.filter(function (d) { return !d.proteinHit; });
-    if (proteinDays.length >= 3 && proteinMisses.length / proteinDays.length > 0.6) {
-      return pickVariant(seed + 'bp', [
-        'and that\'s not just yesterday — protein\'s been low a few days running.',
-        'worth flagging: protein keeps coming up short lately, not just yesterday.'
-      ]);
-    }
-
-    var withWorkout = fortnight.filter(function (d) { return d.hasWorkout && d.vibeLevel; });
-    var withoutWorkout = fortnight.filter(function (d) { return !d.hasWorkout && d.vibeLevel; });
-    if (withWorkout.length >= 2 && withoutWorkout.length >= 2) {
-      var avgW = sum(withWorkout, function (d) { return d.vibeLevel; }) / withWorkout.length;
-      var avgNW = sum(withoutWorkout, function (d) { return d.vibeLevel; }) / withoutWorkout.length;
-      if (avgW - avgNW >= 0.5) {
-        return pickVariant(seed + 'bp', [
-          'random fact your data keeps proving: workout days are your better-vibe days 👀',
-          'zoom out and it\'s clear — movement days hit different for your mood.'
-        ]);
-      }
-    }
-
-    var bestStreak = Math.max(streaks.fuel, streaks.fit);
-    if (bestStreak >= 3) {
-      if (streaks.fit >= streaks.fuel) {
-        return pickVariant(seed + 'bp', [
-          'and that\'s a ' + streaks.fit + '-day fit streak now. certified iconic 🔥',
-          'still riding a ' + streaks.fit + '-day fit streak. built different.'
-        ]);
-      }
-      return pickVariant(seed + 'bp', [
-        'and that\'s a ' + streaks.fuel + '-day fuel streak, no debate.',
-        'still on a ' + streaks.fuel + '-day fuel streak. that\'s just who you are now.'
-      ]);
-    }
-
-    var calDays = week.filter(function (d) { return d.hasFood; });
-    var calHits = calDays.filter(function (d) { return d.calHit; });
-    if (calDays.length >= 4 && calHits.length / calDays.length >= 0.8) {
-      return pickVariant(seed + 'bp', [
-        'and zooming out, more hits than misses this week — that\'s the real win 🎯',
-        'calories have been solid all week, streak or not.'
-      ]);
-    }
-
-    return null;
-  }
-
-  function yesterdayRecapText() {
-    var d0 = new Date(Store.todayISO() + 'T00:00:00');
-    d0.setDate(d0.getDate() - 1);
-    var yesterday = d0.toISOString().slice(0, 10);
-    var yMeals = Store.mealsOn(yesterday);
-    var yWorkouts = Store.workoutsOn(yesterday);
-    var yTargets = Formulas.targets(Store.state.profile);
-    var yIsRestDay = Store.isRestDay(yesterday);
-    var yVibe = Store.state.vibes.filter(function (v) { return v.date === yesterday; })[0];
-
-    var totalEverLogged = Store.state.meals.length + Store.state.workouts.length + Store.state.vibes.length;
-    var seed = Store.todayISO(); // stable per-day, varies day to day
-
-    if (totalEverLogged < 3) {
-      return pickVariant(seed, [
-        'still building your data — keep showing up ✨',
-        'lowkey no data yet ☕ log a few more days, then we talk.'
-      ]);
-    }
-
-    var streaks = fuelFitStreaks();
-    var week = recentDayStats(5);
-    var fortnight = recentDayStats(14);
-
-    // long fit streak, no rest day — recovery nudge takes priority over
-    // reacting to yesterday, since this one's about today
-    if (streaks.fit >= 6) {
-      return pickVariant(seed, [
-        streaks.fit + ' days straight, zero rest days. rest is part of the plan too 🧘',
-        streaks.fit + ' days no cap — but even legends need a rest day.'
-      ]);
-    }
-
-    var reaction = yesterdayWholeDayReaction(yesterday, yMeals, yWorkouts, yIsRestDay, yVibe ? yVibe.level : null, yTargets, seed);
-    var bonus = bonusPatternClause(streaks, week, fortnight, seed);
-    return bonus ? reaction + ' ' + bonus : reaction;
-  }
-
-  function yesterdayRecapCard() {
-    if (localStorage.getItem(RECAP_SEEN_KEY) === Store.todayISO()) return null;
-    var c = el('<div class="card"></div>');
-    c.innerHTML = '<div class="card-head"><h3>💭</h3>' +
-      '<button class="icon-btn" id="dismissRecap" title="dismiss">✕</button></div>' +
-      '<p class="recap-text">' + yesterdayRecapText() + '</p>';
-    c.querySelector('#dismissRecap').addEventListener('click', function () {
-      localStorage.setItem(RECAP_SEEN_KEY, Store.todayISO());
-      render();
-    });
-    return c;
   }
 
   function streakCard() {
@@ -1666,44 +1463,6 @@
       cycleCard.appendChild(el('<p class="muted small" style="margin-top:10px">nothing logged yet — tap above when it starts 🩸</p>'));
     }
     wrap.appendChild(cycleCard);
-
-    var breakCard = el('<div class="card"></div>');
-    breakCard.appendChild(el('<button class="link-btn" id="openBubbleGame">🫧 need a break? pop some bubbles</button>'));
-    breakCard.querySelector('#openBubbleGame').addEventListener('click', function () { setView('bubbleGame'); });
-    wrap.appendChild(breakCard);
-
-    return wrap;
-  };
-
-  // ==== BUBBLE POP (reached via a link on its own tile at the bottom of
-  // the you page, not a tab — pure mental-break toy, deliberately not
-  // wired into the points economy) ====================================
-  views.bubbleGame = function () {
-    var wrap = el('<section class="stack"></section>');
-    wrap.appendChild(el('<button class="link-btn back-link" id="bubbleBack">← back to you</button>'));
-    wrap.appendChild(el('<div class="hello"><h1>bubble pop 🫧</h1><p class="muted">match 3+, chain combos, tap the next bubble to swap it ✨</p></div>'));
-    wrap.querySelector('#bubbleBack').addEventListener('click', function () { setView('you'); });
-
-    var card = el('<div class="card"></div>');
-    card.innerHTML = '<div class="card-head"><h3 id="bubbleScore">score: 0</h3><span class="muted small" id="bubbleHigh"></span></div>' +
-      '<div id="bubbleHost" class="bubble-host"></div>' +
-      '<button class="btn wide" id="bubbleRestart" style="margin-top:12px">restart</button>';
-    wrap.appendChild(card);
-
-    var host = card.querySelector('#bubbleHost');
-    var scoreEl = card.querySelector('#bubbleScore');
-    var highEl = card.querySelector('#bubbleHigh');
-
-    var game = BubbleGame.mount(host, function (liveScore) {
-      scoreEl.textContent = 'score: ' + liveScore;
-      highEl.textContent = 'best: ' + game.getHighScore();
-    });
-    highEl.textContent = 'best: ' + game.getHighScore();
-    card.querySelector('#bubbleRestart').addEventListener('click', function () {
-      game.restart();
-      scoreEl.textContent = 'score: 0';
-      highEl.textContent = 'best: ' + game.getHighScore();
-    });
 
     return wrap;
   };
