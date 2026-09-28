@@ -342,6 +342,8 @@
 
     macCard.appendChild(el('<button class="link-btn" id="openMacroHistory">📊 see your macros over time</button>'));
     macCard.querySelector('#openMacroHistory').addEventListener('click', function () { setView('macroHistory'); });
+    macCard.appendChild(el('<button class="link-btn" id="openFoodDatabase">🍽️ your food list</button>'));
+    macCard.querySelector('#openFoodDatabase').addEventListener('click', function () { setView('foodDatabase'); });
 
     var mFormWrap = el('<div id="foodFormWrap" style="display:none;margin-top:14px"></div>');
     mFormWrap.innerHTML = foodFormHTML();
@@ -1192,7 +1194,7 @@
 
   views.tracker = function () {
     var wrap = el('<section class="stack"></section>');
-    wrap.appendChild(el('<div class="hello"><h1>tracker 🩸</h1><p class="muted">cycle + budget, all in one place</p></div>'));
+    wrap.appendChild(el('<div class="hello"><h1>tracker 📋</h1><p class="muted">budget + cycle, all in one place</p></div>'));
 
     // ---- cycle tracker ----
     var today = Store.todayISO();
@@ -1266,10 +1268,10 @@
     } else {
       cycleCard.appendChild(el('<p class="muted small" style="margin-top:10px">nothing logged yet — tap above when it starts 🩸</p>'));
     }
-    wrap.appendChild(cycleCard);
-
     // ---- budget tracker ----
     wrap.appendChild(budgetTrackerCard());
+
+    wrap.appendChild(cycleCard);
 
     return wrap;
   };
