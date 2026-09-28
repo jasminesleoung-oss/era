@@ -3,9 +3,8 @@
 (function () {
   var viewEl = document.getElementById('view');
   var tabbar = document.getElementById('tabbar');
-  var pointsValue = document.getElementById('pointsValue');
   var toastEl = document.getElementById('toast');
-  var current = 'dashboard';
+  var current = 'fitness';
   var LAST_VIEW_KEY = 'era:lastView';
 
   // ---- tiny helpers ---------------------------------------------------
@@ -34,7 +33,6 @@
   var QUEST_DONE_MSGS = ['handled it 💅', 'slay, quest complete 💅', 'that\'s done, iconic ✨', 'checked off, let\'s go 🔥'];
   var QUEST_DONE_FREE_MSGS = ['done ✓', 'handled ✨', 'slay, done ✓'];
   var CHECKIN_MSGS = ['checked in ✨', 'slay, checked in ✨', 'showed up, logged ✨'];
-  var VIBE_LOGGED_MSGS = ['logged ✨', 'mood: logged 💫', 'slay, noted ✨'];
   var NUM_LOGGED_MSGS = ['logged ✨', 'slay, numbers updated 💪', 'pr energy, logged ✨'];
   function num(v) { var n = Number(v); return isNaN(n) ? 0 : n; }
 
@@ -63,19 +61,6 @@
     } catch (e) { /* ignore */ }
   }
 
-  var BOW = '<svg class="bow" viewBox="0 0 64 56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
-    '<path class="ink" d="M31 27 L23 51 L27 46.5 L29.5 52 L33 30 Z"/>' +
-    '<path class="ink" d="M33 27 L41 51 L37 46.5 L34.5 52 L31 30 Z"/>' +
-    '<path class="ink" d="M30 22 C20 11 7 13 7 21 C7 30 20 34 30 26 Z"/>' +
-    '<path class="ink" d="M34 22 C44 11 57 13 57 21 C57 30 44 34 34 26 Z"/>' +
-    '<rect class="ink" x="28.5" y="19" width="7" height="10" rx="3"/>' +
-    '<ellipse class="shine" cx="17" cy="18" rx="6" ry="2.6"/>' +
-    '<ellipse class="shine" cx="47" cy="18" rx="6" ry="2.6"/>' +
-    '<path class="sparkle sp1" d="M53 4 L54 9 L59 10 L54 11 L53 16 L52 11 L47 10 L52 9 Z"/>' +
-    '<path class="sparkle sp2" d="M11 9 L11.7 12 L15 12.7 L11.7 13.4 L11 16.4 L10.3 13.4 L7 12.7 L10.3 12 Z"/>' +
-    '<path class="sparkle sp3" d="M18 43 L18.6 45.4 L21 46 L18.6 46.6 L18 49 L17.4 46.6 L15 46 L17.4 45.4 Z"/>' +
-    '</svg>';
-
   // unit conversions (internal storage is always metric: cm + kg)
   function cmToFtIn(cm) {
     var ti = cm / 2.54, ft = Math.floor(ti / 12), inch = Math.round(ti - ft * 12);
@@ -89,11 +74,6 @@
   function prettyDate(iso) {
     var d = new Date(iso + 'T00:00:00');
     return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-  }
-
-  function refreshPoints() {
-    var p = Store.pointsTotal();
-    pointsValue.textContent = p.toLocaleString();
   }
 
   // ---- routing --------------------------------------------------------
@@ -120,8 +100,7 @@
   }
 
   function render() {
-    refreshPoints();
-    var fn = views[current] || views.dashboard;
+    var fn = views[current] || views.fitness;
     viewEl.innerHTML = '';
     viewEl.appendChild(fn());
     viewEl.scrollTop = 0;
@@ -145,8 +124,8 @@
     'F45 – Resistance', 'F45 – Cardio', 'Running/Spin', 'Cardio', 'HIIT',
     'Yoga/Mobility', 'Sport', 'Walk', 'Other'
   ];
-  // editing state for the Home log forms — reset at the top of every
-  // views.dashboard() call so it never leaks across a full re-render.
+  // editing state for the fitness-tab log forms — reset at the top of every
+  // views.fitness() call so it never leaks across a full re-render.
   var editingWorkoutId = null;
   var editingMealId = null;
 
@@ -173,19 +152,18 @@
     // this input (which sits outside the <form> for layout reasons) into
     // the form's own fields, so there's no separate/duplicate name box.
     // Picking a result fills it in; typing your own text works exactly
-    // the same as manual entry always did.
+    // the same as manual entry always did. No portion/grams field anymore —
+    // your own database stores the exact macros you logged last time, not
+    // a per-100g value that needs scaling.
     return '<h3 style="margin-top:2px">add food</h3>' +
       '<div id="recentWrap"></div>' +
       '<div class="search-row">' +
-        '<input name="name" form="mForm" id="foodSearch" placeholder="e.g. chicken & rice bowl — or search a food…" autocomplete="off" required>' +
-        '<button class="btn primary" id="foodSearchBtn" type="button">search</button>' +
+        '<input name="name" form="mForm" id="foodSearch" placeholder="e.g. chicken & rice bowl" autocomplete="off" required>' +
       '</div>' +
-      '<div class="search-hint">pulls macros from USDA FoodData Central — or fill in calories yourself below. 🔎</div>' +
+      '<div class="search-hint">start typing to pull from your own food list — anything new saves automatically. 📋</div>' +
       '<ul class="results" id="results"></ul>' +
-      '<div id="pickedBanner"></div>' +
       '<form id="mForm" class="form-grid">' +
       '<label class="wide">date<span class="date-wrap"><input name="date" type="date" value="' + Store.todayISO() + '" max="' + Store.todayISO() + '" required></span></label>' +
-      '<label>portion (g)<input name="grams" type="number" min="1" placeholder="e.g. 200"></label>' +
       '<label>calories<input name="calories" type="number" min="0" required></label>' +
       '<label>protein (g)<input name="protein" type="number" min="0" placeholder="0"></label>' +
       '<label>carbs (g)<input name="carbs" type="number" min="0" placeholder="0"></label>' +
@@ -197,21 +175,16 @@
   // wires the food-search + recent-chips + submit behavior for a food form
   // that's already in the DOM (possibly hidden) inside `card`.
   function wireFoodForm(card, onDone) {
-    var selectedPer100 = null;
     var resultsEl = card.querySelector('#results');
-    var bannerEl = card.querySelector('#pickedBanner');
     var searchInput = card.querySelector('#foodSearch');
     var mForm = card.querySelector('#mForm');
 
-    function fillFromMeal(m) {
-      selectedPer100 = null;
-      mForm.name.value = m.name;
-      mForm.grams.value = '';
-      mForm.calories.value = num(m.calories) || '';
-      mForm.protein.value = num(m.protein) || 0;
-      mForm.carbs.value = num(m.carbs) || 0;
-      mForm.fat.value = num(m.fat) || 0;
-      bannerEl.innerHTML = '';
+    function fillFromEntry(f) {
+      mForm.name.value = f.name;
+      mForm.calories.value = num(f.calories) || '';
+      mForm.protein.value = num(f.protein) || 0;
+      mForm.carbs.value = num(f.carbs) || 0;
+      mForm.fat.value = num(f.fat) || 0;
       resultsEl.innerHTML = '';
     }
     (function renderRecent() {
@@ -228,90 +201,32 @@
       recents.forEach(function (m) {
         var chip = el('<button type="button" class="chip">' + esc(m.name) +
           ' <span class="chip-cal">' + num(m.calories) + '</span></button>');
-        chip.addEventListener('click', function () { fillFromMeal(m); });
+        chip.addEventListener('click', function () { fillFromEntry(m); });
         row.appendChild(chip);
       });
       wrapR.appendChild(row);
     })();
 
-    function applyPortion() {
-      if (!selectedPer100) return;
-      var g = num(mForm.grams.value) || 0;
-      var s = Foods.scale(selectedPer100, g);
-      mForm.calories.value = s.calories;
-      mForm.protein.value = s.protein;
-      mForm.carbs.value = s.carbs;
-      mForm.fat.value = s.fat;
-    }
-    mForm.grams.addEventListener('input', applyPortion);
-
-    function pickFood(f) {
-      selectedPer100 = f.per100;
-      mForm.name.value = f.brand ? f.name + ' (' + f.brand + ')' : f.name;
-      mForm.grams.value = 100;
-      applyPortion();
-      bannerEl.innerHTML = '<div class="picked-banner"><span>✨ scaling <strong>' +
-        esc(f.name) + '</strong> — set your portion in grams above.</span></div>';
-      resultsEl.innerHTML = '';
-    }
-
-    // your own past log entries that match the query — already have the
-    // exact macros you logged before (not a per-100g value to scale), and
-    // don't need a network round-trip, so they render first and instantly.
-    function historicalMatches(q) {
-      var query = q.trim().toLowerCase();
-      if (!query) return [];
-      var seen = {}, out = [];
-      Store.state.meals.slice().reverse().forEach(function (m) {
-        var name = (m.name || '').trim();
-        if (!name || name.toLowerCase().indexOf(query) === -1) return;
-        var key = name.toLowerCase();
-        if (seen[key]) return;
-        seen[key] = true;
-        out.push(m);
-      });
-      return out.slice(0, 6);
-    }
-
+    // pure local filter over your own food database — no network, instant.
     function runSearch() {
-      var q = searchInput.value.trim();
-      if (!q) return;
-      var historical = historicalMatches(q);
-      var historicalHTML = historical.length
-        ? '<li class="results-label">from your log ⏱️</li>' + historical.map(function (m) {
-            return '<li class="hist-result"><span><span class="result-name">' + esc(m.name) + '</span></span>' +
-              '<span class="result-macros">' + num(m.calories) + ' kcal · ' + num(m.protein) + 'g P</span></li>';
-          }).join('')
-        : '';
-      resultsEl.innerHTML = historicalHTML + '<li class="searching" id="usdaStatus">searching the internet… 🌐</li>';
-      [].forEach.call(resultsEl.querySelectorAll('.hist-result'), function (li, i) {
-        li.addEventListener('click', function () { fillFromMeal(historical[i]); });
-      });
-
-      Foods.search(q).then(function (list) {
-        var statusEl = resultsEl.querySelector('#usdaStatus');
-        if (!list.length) {
-          if (statusEl) statusEl.textContent = historical.length ? 'no more matches from the database — the ones above still work. 👆' : 'no matches — type it in manually below. 👇';
-          return;
-        }
-        if (statusEl) statusEl.remove();
-        list.forEach(function (f) {
-          var li = el('<li><span><span class="result-name">' + esc(f.name) + '</span>' +
-            (f.brand ? ' <span class="result-brand">· ' + esc(f.brand) + '</span>' : '') +
-            '</span><span class="result-macros">' + f.per100.cal + ' kcal · ' + f.per100.protein +
-            'g P <span class="muted">/100g</span></span></li>');
-          li.addEventListener('click', function () { pickFood(f); });
-          resultsEl.appendChild(li);
-        });
-      }).catch(function () {
-        var statusEl = resultsEl.querySelector('#usdaStatus');
-        if (statusEl) statusEl.textContent = 'couldn’t reach the food database — check your connection or type it in manually. 🔌';
+      var q = searchInput.value.trim().toLowerCase();
+      if (!q) { resultsEl.innerHTML = ''; return; }
+      var matches = Store.state.foodDatabase.filter(function (f) {
+        return f.name.toLowerCase().indexOf(q) !== -1;
+      }).slice(0, 8);
+      if (!matches.length) {
+        resultsEl.innerHTML = '<li class="searching">nothing in your food list yet — fill in macros below and it’ll save for next time. 👇</li>';
+        return;
+      }
+      resultsEl.innerHTML = '';
+      matches.forEach(function (f) {
+        var li = el('<li><span><span class="result-name">' + esc(f.name) + '</span></span>' +
+          '<span class="result-macros">' + num(f.calories) + ' kcal · ' + num(f.protein) + 'g P</span></li>');
+        li.addEventListener('click', function () { fillFromEntry(f); });
+        resultsEl.appendChild(li);
       });
     }
-    card.querySelector('#foodSearchBtn').addEventListener('click', runSearch);
-    searchInput.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') { e.preventDefault(); runSearch(); }
-    });
+    searchInput.addEventListener('input', runSearch);
 
     mForm.addEventListener('submit', function (ev) {
       ev.preventDefault();
@@ -353,15 +268,14 @@
         toast('workout updated ✓');
         editingWorkoutId = null;
       } else {
-        var pts = Store.addWorkout(data);
-        var msg = data.date === Store.todayISO() ? pickRandom(WORKOUT_LOGGED_MSGS) : 'backfilled ✨ streaks updated';
-        toast(msg + ' +' + pts + ' pts');
+        Store.addWorkout(data);
+        toast(data.date === Store.todayISO() ? pickRandom(WORKOUT_LOGGED_MSGS) : 'backfilled ✨ streaks updated');
       }
       onDone();
     });
   }
 
-  views.dashboard = function () {
+  views.fitness = function () {
     editingWorkoutId = null;
     editingMealId = null;
     var wrap = el('<section class="stack"></section>');
@@ -535,7 +449,6 @@
       var f = mFormWrap.querySelector('#mForm');
       f.date.value = m.date || Store.todayISO();
       f.name.value = m.name || '';
-      f.grams.value = '';
       f.calories.value = num(m.calories);
       f.protein.value = num(m.protein);
       f.carbs.value = num(m.carbs);
@@ -601,7 +514,7 @@
     }
     wireDraft('workout', wFormWrap, ['date', 'name', 'type', 'durationMin', 'intensity', 'notes'],
       function () { return editingWorkoutId; }, function (v) { editingWorkoutId = v; });
-    wireDraft('food', mFormWrap, ['date', 'name', 'grams', 'calories', 'protein', 'carbs', 'fat'],
+    wireDraft('food', mFormWrap, ['date', 'name', 'calories', 'protein', 'carbs', 'fat'],
       function () { return editingMealId; }, function (v) { editingMealId = v; });
     wireWorkoutForm(wFormWrap, function () { clearFormDraft('workout'); render(); });
     wireFoodForm(mFormWrap, function () { clearFormDraft('food'); render(); });
@@ -715,10 +628,9 @@
   // progress, so it's excluded from pattern-detection).
   function recentDayStats(n) {
     var t = Formulas.targets(Store.state.profile);
-    var mealsByDay = {}, workoutsByDay = {}, vibeByDay = {};
+    var mealsByDay = {}, workoutsByDay = {};
     Store.state.meals.forEach(function (m) { (mealsByDay[m.date] = mealsByDay[m.date] || []).push(m); });
     Store.state.workouts.forEach(function (w) { (workoutsByDay[w.date] = workoutsByDay[w.date] || []).push(w); });
-    Store.state.vibes.forEach(function (v) { vibeByDay[v.date] = v.level; });
     var out = [];
     var d = new Date(Store.todayISO() + 'T00:00:00');
     d.setDate(d.getDate() - 1);
@@ -745,8 +657,7 @@
         fat: fat,
         fatPct: (t && hasFood) ? Math.round((fat / t.fat) * 100) : null,
         fatHit: !!(t && hasFood && fat >= t.fat * 0.75 && fat <= t.fat * 1.25),
-        hasWorkout: !!(workoutsByDay[iso] && workoutsByDay[iso].length),
-        vibeLevel: vibeByDay[iso] || null
+        hasWorkout: !!(workoutsByDay[iso] && workoutsByDay[iso].length)
       });
       d.setDate(d.getDate() - 1);
     }
@@ -770,49 +681,16 @@
     return c;
   }
 
-  // ==== POINTS HISTORY (full ledger, reached by tapping the points badge —
-  // not a tab. Same pointsLog powers both earning and spending entries.) ====
-  views.pointsHistory = function () {
-    var wrap = el('<section class="stack"></section>');
-    wrap.appendChild(el('<button class="link-btn back-link" id="phBack">← back to home</button>'));
-    wrap.appendChild(el('<div class="hello"><h1>points history ✦</h1>' +
-      '<p class="muted">everywhere you’ve earned (and spent) points</p></div>'));
-    wrap.querySelector('#phBack').addEventListener('click', function () { setView('dashboard'); });
-
-    var log = Store.state.pointsLog.slice().sort(function (a, b) {
-      if (a.date !== b.date) return b.date.localeCompare(a.date);
-      return b.id.localeCompare(a.id);
-    });
-
-    var card = el('<div class="card"></div>');
-    if (!log.length) {
-      card.appendChild(el('<p class="muted">no points yet — go earn some ✨</p>'));
-    } else {
-      var ul = el('<ul class="entry-list"></ul>');
-      log.forEach(function (e) {
-        var positive = e.delta >= 0;
-        var li = el('<li><span class="entry-main">' + esc(e.reason) + '</span>' +
-          '<span class="muted small">' + prettyDate(e.date) + '</span>' +
-          '<span class="pill' + (positive ? '' : ' spent') + '">' + (positive ? '+' : '') + e.delta + '</span></li>');
-        ul.appendChild(li);
-      });
-      card.appendChild(ul);
-    }
-    wrap.appendChild(card);
-
-    return wrap;
-  };
-
   // ==== EXERCISE TRACKER (per-exercise progress log, reached via a link on
   // the Home lineup card — not a tab. One flat list, since real exercises
   // span multiple lineup categories. Purely a reference log, no points.) ====
   views.exercises = function () {
     var wrap = el('<section class="stack"></section>');
 
-    wrap.appendChild(el('<button class="link-btn back-link" id="exBack">← back to home</button>'));
+    wrap.appendChild(el('<button class="link-btn back-link" id="exBack">← back to fitness</button>'));
     wrap.appendChild(el('<div class="hello"><h1>exercise tracker 🏋️</h1>' +
       '<p class="muted">your numbers, so you don’t need a notes app ✍️</p></div>'));
-    wrap.querySelector('#exBack').addEventListener('click', function () { setView('dashboard'); });
+    wrap.querySelector('#exBack').addEventListener('click', function () { setView('fitness'); });
 
     var exercises = Store.state.exercises;
     var listCard = el('<div class="card"></div>');
@@ -892,10 +770,10 @@
   // tab — same pattern as the exercise tracker) ==========================
   views.macroHistory = function () {
     var wrap = el('<section class="stack"></section>');
-    wrap.appendChild(el('<button class="link-btn back-link" id="macroBack">← back to home</button>'));
+    wrap.appendChild(el('<button class="link-btn back-link" id="macroBack">← back to fitness</button>'));
     wrap.appendChild(el('<div class="hello"><h1>macros over time 📊</h1>' +
       '<p class="muted">what you’ve actually been eating 🍽️</p></div>'));
-    wrap.querySelector('#macroBack').addEventListener('click', function () { setView('dashboard'); });
+    wrap.querySelector('#macroBack').addEventListener('click', function () { setView('fitness'); });
 
     var t = Formulas.targets(Store.state.profile);
     var card = el('<div class="card"></div>');
@@ -981,7 +859,7 @@
   views.quests = function () {
     var wrap = el('<section class="stack"></section>');
     wrap.appendChild(el('<div class="hello"><h1>quests 🗺️</h1>' +
-      '<p class="muted">health quests pay more than side quests; the more you dread it, the bigger the payout 💰</p></div>'));
+      '<p class="muted">the stuff you actually need to do — health first, side stuff after</p></div>'));
 
     var selectedLevel = 3;
     var selectedType = 'health';
@@ -1046,27 +924,19 @@
     function renderGrid() {
       annGrid.innerHTML = '';
       Formulas.ANNOYANCE.forEach(function (a) {
-        var pts = a.points > 0 ? Formulas.questPoints(a.key, selectedType) : 0;
-        var worth = pts > 0 ? '✦ ' + pts : '🔔';
         var b = el('<button type="button" class="annoyance-btn' + (a.key === selectedLevel ? ' active' : '') +
-          (a.points === 0 ? ' reminder-tile' : '') +
-          '"><span>' + esc(a.label) + '</span><span class="worth">' + worth + '</span></button>');
+          (a.key === 0 ? ' reminder-tile' : '') +
+          '"><span>' + esc(a.label) + '</span></button>');
         b.addEventListener('click', function () { selectedLevel = a.key; renderGrid(); updatePreview(); });
         annGrid.appendChild(b);
       });
     }
-    // one-off/reminder value is already shown right on the selected
-    // annoyance tile — only the recurring split (per-check-in + streak
-    // bonus) isn't shown anywhere else, so that's the only case worth a
-    // separate preview line.
+    // only recurring quests get a preview line — the streak cadence isn't
+    // shown anywhere else until you've actually started checking in.
     function updatePreview() {
-      if (!selectedLevel || selectedKind === 'oneoff') {
-        preview.innerHTML = '';
-        return;
-      }
-      var bonusWhen = selectedFreq === 'daily' ? 'every 7-day streak' : 'every week you hit ' + selectedFreq + 'x';
-      preview.innerHTML = 'worth <strong>✦ ' + Formulas.microPoints(selectedLevel, selectedType) + '</strong> per check-in + ' +
-        '<strong>✦ ' + Formulas.questPoints(selectedLevel, selectedType) + '</strong> bonus ' + bonusWhen + ' 🔥';
+      if (selectedKind === 'oneoff') { preview.innerHTML = ''; return; }
+      var cadence = selectedFreq === 'daily' ? 'every day' : selectedFreq + 'x a week';
+      preview.innerHTML = 'check in ' + cadence + ' to build a streak 🔥';
     }
     renderGrid(); updatePreview();
 
@@ -1151,7 +1021,7 @@
 
     // --- lists ---
     function oneOffItem(q) {
-      var pillHTML = q.points > 0 ? '<span class="pill">✦ ' + q.points + '</span>' : '<span class="pill reminder">🔔</span>';
+      var pillHTML = q.annoyance ? '' : '<span class="pill reminder">🔔</span>';
       var li = el('<li class="quest-item' + (q.done ? ' done' : '') + '">' +
         '<div class="quest-mid clickable" title="tap to mark done"><div class="quest-name">' + esc(q.name) + '</div>' +
         '<div class="quest-vibe">' + (q.done ? '' : deadlineTag(q.deadline)) + '</div></div>' +
@@ -1160,7 +1030,7 @@
         '<button class="icon-btn del" title="delete">✕</button></div></li>');
       li.querySelector('.quest-mid').addEventListener('click', function () {
         var nowDone = Store.toggleQuest(q.id);
-        var doneMsg = q.points > 0 ? pickRandom(QUEST_DONE_MSGS) + ' +' + q.points + ' pts' : pickRandom(QUEST_DONE_FREE_MSGS);
+        var doneMsg = pickRandom(q.annoyance ? QUEST_DONE_MSGS : QUEST_DONE_FREE_MSGS);
         toast(nowDone ? doneMsg : 'back on the list 🫡');
         render();
       });
@@ -1193,8 +1063,8 @@
       var checkinBtn = li.querySelector('.checkin-btn');
       if (checkinBtn) {
         checkinBtn.addEventListener('click', function () {
-          var pts = Store.checkInQuest(q.id);
-          toast(pts > 0 ? (pickRandom(CHECKIN_MSGS) + ' +' + pts + ' pts') : pickRandom(CHECKIN_MSGS));
+          Store.checkInQuest(q.id);
+          toast(pickRandom(CHECKIN_MSGS));
           render();
         });
       }
@@ -1237,158 +1107,92 @@
     return wrap;
   };
 
-  // ==== REWARDS ========================================================
-  views.rewards = function () {
-    var wrap = el('<section class="stack"></section>');
-    var pts = Store.pointsTotal();
-    var editingRewardId = null;
-    wrap.appendChild(el('<div class="hello"><h1>the treat shop 🛍️</h1>' +
-      '<p class="muted">you’ve got <strong>' + pts.toLocaleString() + '</strong> pts to blow 💸</p></div>'));
+  // ==== TRACKER (cycle tracker + budget tracker) =========================
+  function budgetMetricCard(label, spent, limit) {
+    var pct = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+    var barPct = Math.min(100, pct);
+    var over = spent > limit * 1.05;
+    var c = el('<div class="metric"></div>');
+    c.innerHTML =
+      '<div class="metric-top"><span class="metric-label">' + esc(label) + '</span>' +
+      '<span class="metric-pct' + (over ? ' over' : '') + '">' + pct + '%</span></div>' +
+      '<div class="metric-val">$' + Math.round(spent) + ' <span class="muted">/ $' + Math.round(limit) + '</span></div>' +
+      '<div class="bar"><div class="bar-fill' + (over ? ' over' : '') + '" style="width:' + barPct + '%"></div></div>';
+    return c;
+  }
 
-    // add / edit reward (declared first so editReward() can reference it)
-    var addCard = el('<div class="card"></div>');
-    addCard.innerHTML =
-      '<h3 id="rewardFormTitle">Add a reward</h3>' +
-      '<form id="rForm" class="form-grid">' +
-      '<label class="wide">Reward<input name="name" placeholder="e.g. New running shoes" required></label>' +
-      '<label>Cost (points)<input name="cost" type="number" min="1" value="1000" required></label>' +
-      '<button class="btn primary wide" type="submit" id="rSubmit">Add reward</button>' +
-      '<button type="button" class="btn small" id="rCancel" style="display:none">cancel edit</button>' +
+  function expenseFormHTML() {
+    var opts = Store.state.budgetCategories.map(function (c) {
+      return '<option value="' + c.id + '">' + esc(c.name) + '</option>';
+    }).join('');
+    return '<h3 style="margin-top:2px">log an expense</h3>' +
+      '<form id="eForm" class="form-grid">' +
+      '<label class="wide">category<select name="categoryId" required>' + opts + '</select></label>' +
+      '<label>amount ($)<input name="amount" type="number" min="0" step="0.01" required></label>' +
+      '<label>date<span class="date-wrap"><input name="date" type="date" value="' + Store.todayISO() + '" max="' + Store.todayISO() + '" required></span></label>' +
+      '<label class="wide">note (optional)<input name="note" placeholder="e.g. groceries"></label>' +
+      '<button class="btn primary wide" type="submit">log expense</button>' +
       '</form>';
-    var rForm = addCard.querySelector('#rForm');
-    var rTitle = addCard.querySelector('#rewardFormTitle');
-    var rSubmit = addCard.querySelector('#rSubmit');
-    var rCancel = addCard.querySelector('#rCancel');
-    rForm.addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      var name = ev.target.name.value.trim();
-      var cost = ev.target.cost.value;
-      if (editingRewardId) {
-        Store.updateReward(editingRewardId, { name: name, cost: cost });
-        toast('reward updated ✓');
-      } else {
-        Store.addReward(name, cost);
-        toast('Reward added');
-      }
-      render();
-    });
-    rCancel.addEventListener('click', function () {
-      editingRewardId = null;
-      rForm.reset();
-      rTitle.textContent = 'Add a reward';
-      rSubmit.textContent = 'Add reward';
-      rCancel.style.display = 'none';
-    });
-    function editReward(r) {
-      editingRewardId = r.id;
-      rForm.name.value = r.name;
-      rForm.cost.value = r.cost;
-      rTitle.textContent = 'Edit reward';
-      rSubmit.textContent = 'save changes';
-      rCancel.style.display = '';
-      addCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+  }
 
-    var grid = el('<div class="reward-grid"></div>');
-    Store.state.rewards.forEach(function (r) {
-      var affordable = pts >= r.cost;
-      var card = el('<div class="reward' + (affordable ? ' affordable' : '') + '"></div>');
-      card.innerHTML =
-        (affordable ? '<span class="reward-bow">' + BOW.replace('class="bow"', 'class="bow bow-pink"') + '</span>' : '') +
-        '<div class="reward-cost">✦ ' + r.cost.toLocaleString() + '</div>' +
-        '<div class="reward-name">' + esc(r.name) + '</div>' +
-        '<div class="reward-actions">' +
-          '<button class="btn small primary redeem" ' + (affordable ? '' : 'disabled') + '>Redeem</button>' +
-          '<button class="icon-btn" title="Edit reward">✏️</button>' +
-          '<button class="icon-btn del" title="Remove reward">✕</button>' +
-        '</div>';
-      card.querySelector('.redeem').addEventListener('click', function () {
-        var res = Store.redeemReward(r.id);
-        toast(res.msg);
-        render();
-      });
-      card.querySelector('[title="Edit reward"]').addEventListener('click', function () { editReward(r); });
-      card.querySelector('.del').addEventListener('click', function () {
-        if (confirm('Remove “' + r.name + '” from your rewards?')) { Store.deleteReward(r.id); render(); }
-      });
-      grid.appendChild(card);
-    });
-    wrap.appendChild(grid);
-    wrap.appendChild(addCard);
+  function budgetTrackerCard() {
+    var card = el('<div class="card"></div>');
+    card.appendChild(el('<div class="card-head"><h3>budget 💵</h3></div>'));
 
-    // redemption history
-    if (Store.state.redemptions.length) {
-      var hist = el('<div class="card"></div>');
-      hist.appendChild(el('<h3>Redeemed</h3>'));
-      var ul = el('<ul class="mini-list"></ul>');
-      Store.state.redemptions.slice().reverse().forEach(function (x) {
-        ul.appendChild(el('<li><span>' + esc(x.name) + ' · ' + prettyDate(x.date) + '</span>' +
-          '<span class="pill">−' + x.cost.toLocaleString() + '</span></li>'));
-      });
-      hist.appendChild(ul);
-      wrap.appendChild(hist);
-    }
-    return wrap;
-  };
-
-  // ==== YOU (vibe check + cycle tracker) ================================
-  var VIBES = [
-    { level: 1, emoji: '😩', label: 'rough' },
-    { level: 2, emoji: '😕', label: 'meh' },
-    { level: 3, emoji: '😐', label: 'okay' },
-    { level: 4, emoji: '🙂', label: 'good' },
-    { level: 5, emoji: '😄', label: 'great' }
-  ];
-  var WEEKDAY_LABELS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-
-  views.you = function () {
-    var wrap = el('<section class="stack"></section>');
-    wrap.appendChild(el('<div class="hello"><h1>you 🪞</h1><p class="muted">quick check-ins, just for you 💗</p></div>'));
-
-    // ---- vibe check ----
-    var todayLevel = Store.vibeToday();
-    var vibeCard = el('<div class="card"></div>');
-    vibeCard.appendChild(el('<h3>vibe check 🌈</h3>'));
-    var vibeGrid = el('<div class="vibe-grid"></div>');
-    VIBES.forEach(function (v) {
-      var b = el('<button type="button" class="vibe-btn' + (todayLevel === v.level ? ' active' : '') + '">' +
-        '<span class="vibe-emoji">' + v.emoji + '</span><span class="vibe-label">' + v.label + '</span></button>');
-      b.addEventListener('click', function () {
-        var alreadyLoggedToday = Store.vibeToday() !== null;
-        var bonus = Store.logVibe(v.level);
-        if (alreadyLoggedToday) toast('updated ✨');
-        else if (bonus > 0) toast(pickRandom(VIBE_LOGGED_MSGS) + ' +' + bonus + ' pts — 7 day streak 🔥');
-        else toast(pickRandom(VIBE_LOGGED_MSGS));
-        render();
-      });
-      vibeGrid.appendChild(b);
-    });
-    vibeCard.appendChild(vibeGrid);
-
-    var weekday = Store.vibeByWeekday();
-    var loggedCount = Store.state.vibes.length;
-    var insightsFold = el('<details class="fold" style="margin-top:14px"></details>');
-    var chartHTML;
-    if (loggedCount < 5) {
-      var recentVibes = Store.state.vibes.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);
-      var recentHTML = '';
-      if (recentVibes.length) {
-        recentHTML = '<ul class="mini-list" style="margin-top:10px">' + recentVibes.map(function (v) {
-          var vObj = VIBES.filter(function (x) { return x.level === v.level; })[0];
-          return '<li><span>' + prettyDate(v.date) + '</span><span>' + (vObj ? vObj.emoji + ' ' + vObj.label : v.level) + '</span></li>';
-        }).join('') + '</ul>';
-      }
-      chartHTML = recentHTML + '<p class="muted small" style="margin-top:10px">log a few more to unlock the weekly pattern ✨</p>';
+    var categories = Store.state.budgetCategories;
+    var summary = Store.budgetSummary();
+    if (!categories.length) {
+      card.appendChild(el('<p class="muted">no budget categories yet — add one below 👇</p>'));
     } else {
-      chartHTML = '<div class="weekday-chart">' + weekday.map(function (avg, i) {
-        var pct = avg ? Math.round((avg / 5) * 100) : 4;
-        return '<div class="wd-col"><div class="wd-bar-track"><div class="wd-bar" style="height:' + pct + '%"></div></div>' +
-          '<div class="wd-label">' + WEEKDAY_LABELS[i] + '</div></div>';
-      }).join('') + '</div>';
+      var grid = el('<div class="metric-grid"></div>');
+      summary.forEach(function (c) { grid.appendChild(budgetMetricCard(c.name, c.spent, c.monthlyLimit)); });
+      card.appendChild(grid);
+
+      var recentExpenses = Store.state.expenses.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 20);
+      if (recentExpenses.length) {
+        var catById = {};
+        categories.forEach(function (c) { catById[c.id] = c.name; });
+        var fold = el('<details class="fold" style="margin-top:14px"></details>');
+        fold.innerHTML = '<summary>recent expenses 📋</summary><div class="fold-body"><ul class="entry-list" id="expenseList" style="margin-top:12px"></ul></div>';
+        var list = fold.querySelector('#expenseList');
+        recentExpenses.forEach(function (e) {
+          var li = el('<li><span class="entry-main">' + esc(catById[e.categoryId] || 'unknown') + ' · $' + num(e.amount).toFixed(2) +
+            (e.note ? ' · ' + esc(e.note) : '') + ' · ' + prettyDate(e.date) + '</span>' +
+            '<button class="icon-btn del" title="delete">✕</button></li>');
+          li.querySelector('.del').addEventListener('click', function () { Store.deleteExpense(e.id); render(); });
+          list.appendChild(li);
+        });
+        card.appendChild(fold);
+      }
+
+      var eFormWrap = el('<div id="expenseFormWrap" style="display:none;margin-top:14px"></div>');
+      eFormWrap.innerHTML = expenseFormHTML();
+      card.appendChild(eFormWrap);
+      card.appendChild(el('<button class="btn wide" id="toggleExpenseForm" style="margin-top:12px">+ log expense</button>'));
+      var toggleBtn = card.querySelector('#toggleExpenseForm');
+      toggleBtn.addEventListener('click', function () {
+        var showing = eFormWrap.style.display !== 'none';
+        eFormWrap.style.display = showing ? 'none' : 'block';
+        if (!showing) eFormWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+      eFormWrap.querySelector('#eForm').addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        var f = ev.target;
+        Store.addExpense(f.categoryId.value, f.amount.value, f.date.value, f.note.value.trim());
+        toast('logged ✨');
+        eFormWrap.style.display = 'none';
+        render();
+      });
     }
-    insightsFold.innerHTML = '<summary>insights 📊</summary><div class="fold-body">' + chartHTML + '</div>';
-    vibeCard.appendChild(insightsFold);
-    wrap.appendChild(vibeCard);
+
+    card.appendChild(el('<button class="link-btn" id="manageBudgetCats" style="margin-top:10px">⚙️ manage budget categories</button>'));
+    card.querySelector('#manageBudgetCats').addEventListener('click', function () { setView('budgetCategories'); });
+    return card;
+  }
+
+  views.tracker = function () {
+    var wrap = el('<section class="stack"></section>');
+    wrap.appendChild(el('<div class="hello"><h1>tracker 🩸</h1><p class="muted">cycle + budget, all in one place</p></div>'));
 
     // ---- cycle tracker ----
     var today = Store.todayISO();
@@ -1463,6 +1267,194 @@
       cycleCard.appendChild(el('<p class="muted small" style="margin-top:10px">nothing logged yet — tap above when it starts 🩸</p>'));
     }
     wrap.appendChild(cycleCard);
+
+    // ---- budget tracker ----
+    wrap.appendChild(budgetTrackerCard());
+
+    return wrap;
+  };
+
+  // ==== BUDGET CATEGORIES (add/edit/delete, reached via a link on the
+  // tracker page, not a tab) =============================================
+  views.budgetCategories = function () {
+    var wrap = el('<section class="stack"></section>');
+    wrap.appendChild(el('<button class="link-btn back-link" id="bcBack">← back to tracker</button>'));
+    wrap.appendChild(el('<div class="hello"><h1>budget categories 💵</h1><p class="muted">set a monthly limit for each one</p></div>'));
+    wrap.querySelector('#bcBack').addEventListener('click', function () { setView('tracker'); });
+
+    var editingId = null;
+    var listCard = el('<div class="card"></div>');
+    var summary = Store.budgetSummary();
+    if (!summary.length) {
+      listCard.appendChild(el('<p class="muted">nothing set up yet — add your first category below 👇</p>'));
+    } else {
+      var ul = el('<ul class="entry-list"></ul>');
+      summary.forEach(function (c) {
+        var li = el('<li><span class="entry-main">' + esc(c.name) + ' · $' + Math.round(c.monthlyLimit) + '/mo</span>' +
+          '<button class="icon-btn" title="edit">✏️</button>' +
+          '<button class="icon-btn del" title="delete">✕</button></li>');
+        li.querySelector('[title=edit]').addEventListener('click', function () { editCategory(c); });
+        li.querySelector('.del').addEventListener('click', function () {
+          if (confirm('Remove “' + c.name + '”? Its logged expenses go with it.')) { Store.deleteBudgetCategory(c.id); render(); }
+        });
+        ul.appendChild(li);
+      });
+      listCard.appendChild(ul);
+    }
+    wrap.appendChild(listCard);
+
+    var formCard = el('<div class="card"></div>');
+    formCard.innerHTML = '<h3 id="bcFormTitle">add a category</h3>' +
+      '<form id="bcForm" class="form-grid">' +
+      '<label class="wide">name<input name="name" placeholder="e.g. groceries" required></label>' +
+      '<label class="wide">monthly limit ($)<input name="limit" type="number" min="0" step="1" required></label>' +
+      '<button class="btn primary wide" type="submit" id="bcSubmit">add category</button>' +
+      '<button type="button" class="btn small" id="bcCancel" style="display:none">cancel edit</button>' +
+      '</form>';
+    wrap.appendChild(formCard);
+    var bcForm = formCard.querySelector('#bcForm');
+    var bcTitle = formCard.querySelector('#bcFormTitle');
+    var bcSubmit = formCard.querySelector('#bcSubmit');
+    var bcCancel = formCard.querySelector('#bcCancel');
+
+    function editCategory(c) {
+      editingId = c.id;
+      bcForm.name.value = c.name;
+      bcForm.limit.value = c.monthlyLimit;
+      bcTitle.textContent = 'edit category';
+      bcSubmit.textContent = 'save changes';
+      bcCancel.style.display = '';
+      formCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    bcCancel.addEventListener('click', function () {
+      editingId = null;
+      bcForm.reset();
+      bcTitle.textContent = 'add a category';
+      bcSubmit.textContent = 'add category';
+      bcCancel.style.display = 'none';
+    });
+    bcForm.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var name = bcForm.name.value.trim();
+      var limit = bcForm.limit.value;
+      if (editingId) {
+        Store.updateBudgetCategory(editingId, { name: name, monthlyLimit: limit });
+        toast('category updated ✓');
+      } else {
+        Store.addBudgetCategory(name, limit);
+        toast('category added ✨');
+      }
+      render();
+    });
+
+    return wrap;
+  };
+
+  // ==== YOU (profile summary + links to your records) ====================
+  views.you = function () {
+    var wrap = el('<section class="stack"></section>');
+    wrap.appendChild(el('<div class="hello"><h1>you 🪞</h1><p class="muted">your profile, records & data 💗</p></div>'));
+
+    var p = Store.state.profile;
+    var t = Formulas.targets(p);
+    var firstName = (p.name || '').trim().split(/\s+/)[0];
+    var profileCard = el('<div class="card"></div>');
+    profileCard.appendChild(el('<div class="card-head"><h3>' + (firstName ? esc(firstName) : 'your profile') +
+      '</h3><button class="btn small" id="editProfile">edit</button></div>'));
+    profileCard.appendChild(el(t
+      ? '<p class="muted small">weight loss: <strong>' + t.minCalories + ' kcal</strong> · maintenance: <strong>' +
+        t.tdee + ' kcal</strong> · protein target: <strong>' + t.protein + 'g</strong></p>'
+      : '<p class="muted small">set up your stats in edit to get daily targets.</p>'));
+    profileCard.querySelector('#editProfile').addEventListener('click', function () { setView('profile'); });
+    wrap.appendChild(profileCard);
+
+    var linksCard = el('<div class="card"></div>');
+    linksCard.appendChild(el('<h3>your records 📈</h3>'));
+    [
+      { label: '📈 exercise numbers', view: 'exercises' },
+      { label: '📊 macros over time', view: 'macroHistory' },
+      { label: '🍽️ your food list', view: 'foodDatabase' }
+    ].forEach(function (l) {
+      var b = el('<button class="link-btn" style="display:block;margin-top:8px">' + l.label + '</button>');
+      b.addEventListener('click', function () { setView(l.view); });
+      linksCard.appendChild(b);
+    });
+    wrap.appendChild(linksCard);
+
+    return wrap;
+  };
+
+  // ==== FOOD DATABASE (view/edit/delete your saved foods, reached via a
+  // link on the you page, not a tab — this is where "clean up the names"
+  // happens, since your log itself stays untouched either way) ============
+  views.foodDatabase = function () {
+    var wrap = el('<section class="stack"></section>');
+    wrap.appendChild(el('<button class="link-btn back-link" id="fdBack">← back to you</button>'));
+    wrap.appendChild(el('<div class="hello"><h1>your food list 🍽️</h1>' +
+      '<p class="muted">everything you’ve logged, saved for next time</p></div>'));
+    wrap.querySelector('#fdBack').addEventListener('click', function () { setView('you'); });
+
+    var listCard = el('<div class="card"></div>');
+    var entries = Store.state.foodDatabase.slice().sort(function (a, b) { return a.name.localeCompare(b.name); });
+    if (!entries.length) {
+      listCard.appendChild(el('<p class="muted">nothing saved yet — log some food and it’ll show up here.</p>'));
+    } else {
+      var ul = el('<ul class="entry-list"></ul>');
+      entries.forEach(function (f) {
+        var li = el('<li><span class="entry-main">' + esc(f.name) + ' · ' + num(f.calories) + ' kcal · ' + num(f.protein) + 'g P</span>' +
+          '<button class="icon-btn" title="edit">✏️</button>' +
+          '<button class="icon-btn del" title="delete">✕</button></li>');
+        li.querySelector('[title=edit]').addEventListener('click', function () { editEntry(f); });
+        li.querySelector('.del').addEventListener('click', function () {
+          if (confirm('Remove “' + f.name + '” from your food list? (past logged meals stay untouched)')) {
+            Store.deleteFoodDatabaseEntry(f.id); render();
+          }
+        });
+        ul.appendChild(li);
+      });
+      listCard.appendChild(ul);
+    }
+    wrap.appendChild(listCard);
+
+    var editCard = el('<div class="card" id="fdEditCard" style="display:none"></div>');
+    editCard.innerHTML = '<h3>edit entry</h3>' +
+      '<form id="fdForm" class="form-grid">' +
+      '<label class="wide">name<input name="name" required></label>' +
+      '<label>calories<input name="calories" type="number" min="0" required></label>' +
+      '<label>protein (g)<input name="protein" type="number" min="0"></label>' +
+      '<label>carbs (g)<input name="carbs" type="number" min="0"></label>' +
+      '<label>fat (g)<input name="fat" type="number" min="0"></label>' +
+      '<button class="btn primary wide" type="submit">save changes</button>' +
+      '</form>';
+    wrap.appendChild(editCard);
+
+    var editingId = null;
+    var fdForm = editCard.querySelector('#fdForm');
+    function editEntry(f) {
+      editingId = f.id;
+      fdForm.name.value = f.name;
+      fdForm.calories.value = num(f.calories);
+      fdForm.protein.value = num(f.protein);
+      fdForm.carbs.value = num(f.carbs);
+      fdForm.fat.value = num(f.fat);
+      editCard.style.display = '';
+      editCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    fdForm.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      if (!editingId) return;
+      Store.updateFoodDatabaseEntry(editingId, {
+        name: fdForm.name.value.trim(),
+        calories: num(fdForm.calories.value),
+        protein: num(fdForm.protein.value),
+        carbs: num(fdForm.carbs.value),
+        fat: num(fdForm.fat.value)
+      });
+      toast('updated ✓');
+      editingId = null;
+      editCard.style.display = 'none';
+      render();
+    });
 
     return wrap;
   };
@@ -1575,7 +1567,6 @@
     if (b) setView(b.dataset.view);
   });
 
-  document.getElementById('pointsBadge').addEventListener('click', function () { setView('pointsHistory'); });
   document.getElementById('settingsBtn').addEventListener('click', function () { setView('profile'); });
 
   document.getElementById('exportBtn').addEventListener('click', function () {
@@ -1603,21 +1594,31 @@
 
   // ---- auth + cloud boot ---------------------------------------------
   var authState = { user: null };
+  // Supabase's onAuthStateChange can fire more than once — a session check
+  // kicked off before autoSignIn() resolves, then a late/duplicate "no
+  // session" event once a blocked or flaky network request finally settles
+  // (this was a real, confirmed cause of the app opening to a stuck
+  // "connecting…" screen with no tab bar: bootLocal() already showed real
+  // local data, then a late null-user event blew it away). Once real
+  // content is on screen, a null user should just mean "cloud's not
+  // available right now" — never re-blank the UI over it.
+  var booted = false;
 
   function showChrome(show) { tabbar.style.display = show ? '' : 'none'; }
 
   function bootLocal() {
+    booted = true;
     showChrome(true);
-    Store.ensureRewardPack(); // one-time top-up of the expanded rewards lineup
-    Store.save(); // reconcile bonuses once
+    Store.ensureFoodDatabaseSeeded(); // one-time: builds your food list from existing meal history
     if (!Formulas.targets(Store.state.profile)) { setView('profile'); return; }
-    setView(restoreLastView() || 'dashboard');
+    setView(restoreLastView() || 'fitness');
   }
 
   function handleUser(user) {
     authState.user = user;
     if (!user) {
       Store.setCloudUser(null);
+      if (booted) return;
       showChrome(false);
       viewEl.innerHTML = '<div class="card" style="text-align:center;margin-top:20px">connecting… ✨</div>';
       return;

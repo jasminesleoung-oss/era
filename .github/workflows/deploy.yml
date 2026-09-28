@@ -28,15 +28,13 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_EMAIL: ${{ secrets.SUPABASE_EMAIL }}
           SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
-          USDA_API_KEY: ${{ secrets.USDA_API_KEY }}
         run: |
           cat > js/config.js <<EOF
           var ERA_CONFIG = {
             supabaseUrl: '$SUPABASE_URL',
             supabaseAnonKey: '$SUPABASE_ANON_KEY',
             supabaseEmail: '$SUPABASE_EMAIL',
-            supabasePassword: '$SUPABASE_PASSWORD',
-            usdaApiKey: '$USDA_API_KEY'
+            supabasePassword: '$SUPABASE_PASSWORD'
           };
           EOF
       - name: Prepare deploy folder (exclude git/workflow internals)

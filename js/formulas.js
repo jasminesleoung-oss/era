@@ -1,4 +1,4 @@
-/* formulas.js — pure, offline nutrition & points math.
+/* formulas.js — pure, offline nutrition math.
    Everything here is a plain function with no side effects. */
 
 var Formulas = (function () {
@@ -63,45 +63,16 @@ var Formulas = (function () {
     };
   }
 
-  // ---- Points economy -------------------------------------------------
-  // Flat tiers by duration — a round, predictable number instead of a
-  // base + per-5-min + intensity-bonus formula you had to add up in your head.
-  function workoutPoints(durationMin) {
-    var d = Math.max(0, Number(durationMin) || 0);
-    if (d <= 20) return 15;
-    if (d <= 40) return 30;
-    if (d <= 60) return 45;
-    return 60;
-  }
-
-  var DAILY_PROTEIN_BONUS = 25;
-  var DAILY_CALORIE_BONUS = 25;
-  var VIBE_STREAK_BONUS = 50; // awarded once per 7-day consecutive vibe check-in streak, not per log
-
-  // ---- Quests: the more you're dreading it, the bigger the payout ----
-  // health quests (medical/wellness upkeep) pay full; side quests (general
-  // life admin/organization) pay a reduced rate — both count, health counts more.
+  // ---- Quests: just a "how much are you dreading it" flavor rating now —
+  // no point payout attached, task lists don't need a currency. ----
   var ANNOYANCE = [
-    { key: 1, label: 'lowkey easy 😌',        points: 100 },
-    { key: 2, label: 'kinda annoying 🙄',     points: 250 },
-    { key: 3, label: 'actual chore 😮‍💨',      points: 500 },
-    { key: 4, label: 'been dreading it 😰',   points: 900 },
-    { key: 5, label: 'kicking & screaming 😭', points: 1500 },
-    { key: 0, label: 'just a reminder 🔔',    points: 0 }
+    { key: 1, label: 'lowkey easy 😌' },
+    { key: 2, label: 'kinda annoying 🙄' },
+    { key: 3, label: 'actual chore 😮‍💨' },
+    { key: 4, label: 'been dreading it 😰' },
+    { key: 5, label: 'kicking & screaming 😭' },
+    { key: 0, label: 'just a reminder 🔔' }
   ];
-  var QUEST_TYPE_MULT = { health: 1, side: 0.6 };
-  function questPoints(level, type) {
-    var base = 250;
-    for (var i = 0; i < ANNOYANCE.length; i++) if (ANNOYANCE[i].key === Number(level)) base = ANNOYANCE[i].points;
-    var mult = QUEST_TYPE_MULT[type] != null ? QUEST_TYPE_MULT[type] : 1;
-    return Math.round((base * mult) / 10) * 10;
-  }
-
-  // recurring quests pay a small amount per check-in (full quest value / 10)
-  // plus a full-size bonus every time a streak milestone is hit.
-  function microPoints(level, type) {
-    return Math.max(5, Math.round(questPoints(level, type) / 10));
-  }
 
   // ---- Quest deadline urgency (for funny warning copy) ----
   function daysUntil(deadlineISO) {
@@ -115,15 +86,8 @@ var Formulas = (function () {
     ACTIVITY: ACTIVITY,
     GOALS: GOALS,
     ANNOYANCE: ANNOYANCE,
-    QUEST_TYPE_MULT: QUEST_TYPE_MULT,
     bmr: bmr,
     targets: targets,
-    workoutPoints: workoutPoints,
-    questPoints: questPoints,
-    microPoints: microPoints,
-    daysUntil: daysUntil,
-    DAILY_PROTEIN_BONUS: DAILY_PROTEIN_BONUS,
-    DAILY_CALORIE_BONUS: DAILY_CALORIE_BONUS,
-    VIBE_STREAK_BONUS: VIBE_STREAK_BONUS
+    daysUntil: daysUntil
   };
 })();

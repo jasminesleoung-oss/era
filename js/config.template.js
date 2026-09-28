@@ -15,10 +15,5 @@ var ERA_CONFIG = {
   // so there's never a login screen. Safe only because RLS ties all data
   // access to this exact account — see SETUP.md.
   supabaseEmail: 'YOUR_SUPABASE_EMAIL_HERE',
-  supabasePassword: 'YOUR_SUPABASE_PASSWORD_HERE',
-
-  // Free instant API key from https://fdc.nal.usda.gov/api-key-signup.html
-  // — powers food search (USDA FoodData Central). Blank = search disabled,
-  // you can still type macros in manually.
-  usdaApiKey: 'YOUR_USDA_API_KEY_HERE'
+  supabasePassword: 'YOUR_SUPABASE_PASSWORD_HERE'
 };
